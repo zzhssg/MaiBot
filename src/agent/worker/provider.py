@@ -16,9 +16,9 @@ def tool_specs() -> List[ToolSpec]:
     definitions = [
         (
             "dsh_task",
-            "把一个需要动电脑的任务派给本机 DSH 执行：读文件、改代码、跑命令、联网搜索、写插件、操作图形界面。"
+            "把一个需要动电脑的任务派给本机 DSH 执行：读文件、改代码、跑命令、查日志、写插件、操作图形界面。"
             "调用立即返回 task_id，任务在后台运行；结束后结果会作为内部消息送回，你要用用户习惯的口吻转述，不要贴原文、不要复述过程。"
-            "用户给出本机路径（日志、代码、文件、目录）让你查看时直接派单，不要说看不到本地目录。只派自包含、可验收的任务；常识、闲聊、记忆查询不要用它。",
+            "用户给出本机路径（日志、代码、文件、目录）让你查看时直接派单，不要说看不到本地目录。只派自包含、可验收的任务；常识、闲聊、记忆查询不要用它；简单的公开信息搜索用 web_search，不要派 worker。",
             {
                 "brief": {"type": "string", "description": "写清目标、验收标准、不能做的事、涉及的路径；不要把整段聊天粘进来。"},
                 "screen": {"type": "boolean", "description": "需要看屏幕或操作鼠标键盘时填 true；只有主人授权的私聊可用。", "default": False},
@@ -112,7 +112,10 @@ class DshWorkerToolProvider:
         task = self.pool.submit(
             chat_id=context.session_id, brief=brief, screen=screen, continue_from=continue_from,
         )
-        return {"task_id": task.task_id, "status": task.status, "backend": task.backend, "session": task.session}
+        return {
+            "task_id": task.task_id, "status": task.status, "backend": task.backend, "session": task.session,
+            "notice": "已派单。先调用 reply 回一句「我去看下/在查了」，再用 wait 等结果；不要静默开始长任务。",
+        }
 
     def _stop(self, arguments: Dict[str, Any], context: ToolExecutionContext) -> Dict[str, Any]:
         task_id = str(arguments.get("task_id", "")).strip()
