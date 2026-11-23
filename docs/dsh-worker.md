@@ -68,6 +68,8 @@ dsh_stop   { "task_id": "dsh-1" }   // 取消并等回送；不存在或已结�
 
 ## 交接契约
 
+派单反馈：`dsh_task` 成功后由 provider 直接回一句「去看下，等会儿说。」，不依赖 Planner 记得；工具结果里的 notice 会告诉它「已确认，不要重复」。
+
 DSH 的正文是素材，不是回复。回送措辞在 `prompts/*/instructions/agent/dsh_worker_result.prompt`，
 核心约束是：不复述过程、不列步骤、不贴原文、失败说人话。`delivery.py` 只负责填充：
 

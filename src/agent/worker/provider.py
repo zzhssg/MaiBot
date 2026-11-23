@@ -81,7 +81,7 @@ class DshWorkerToolProvider:
                 raise PermissionError("当前聊天没有派发 DSH 任务的权限。")
             arguments: Dict[str, Any] = invocation.arguments
             if invocation.tool_name == "dsh_task":
-                payload = self._submit(arguments, context)
+                payload = await self._submit(arguments, context)
             elif invocation.tool_name == "dsh_status":
                 payload = self.pool.status(context.session_id, str(arguments.get("task_id", "")).strip())
             elif invocation.tool_name == "dsh_stop":
@@ -101,7 +101,7 @@ class DshWorkerToolProvider:
                 error_message=f"{type(exc).__name__}: {exc}",
             )
 
-    def _submit(self, arguments: Dict[str, Any], context: ToolExecutionContext) -> Dict[str, Any]:
+    async def _submit(self, arguments: Dict[str, Any], context: ToolExecutionContext) -> Dict[str, Any]:
         brief = str(arguments.get("brief", "")).strip()
         if not brief:
             raise ValueError("brief 不能为空：写清楚要做什么以及怎样算完成。")
@@ -112,10 +112,27 @@ class DshWorkerToolProvider:
         task = self.pool.submit(
             chat_id=context.session_id, brief=brief, screen=screen, continue_from=continue_from,
         )
+        # 长任务必须先给用户一个反馈：这里直接发一句确认，不依赖 Planner 记得。
+        ack_sent = await self._send_ack(context.session_id)
         return {
             "task_id": task.task_id, "status": task.status, "backend": task.backend, "session": task.session,
-            "notice": "已派单。先调用 reply 回一句「我去看下/在查了」，再用 wait 等结果；不要静默开始长任务。",
+            "notice": "已先回用户一句确认，不要重复确认；结果回来后再交代。" if ack_sent else
+                      "请立刻 reply 一句确认，再 wait 等结果。",
         }
+
+    @staticmethod
+    async def _send_ack(session_id: str) -> bool:
+        """派单后的固定反馈，失败只记日志，不影响任务本身。"""
+
+        from src.services.send_service import text_to_stream
+
+        try:
+            return bool(await text_to_stream("去看下，等会儿说。", session_id, storage_message=False))
+        except Exception:
+            from src.common.logger import get_logger
+
+            get_logger("agent.worker.provider").exception(f"派单确认发送失败: session_id={session_id}")
+            return False
 
     def _stop(self, arguments: Dict[str, Any], context: ToolExecutionContext) -> Dict[str, Any]:
         task_id = str(arguments.get("task_id", "")).strip()
