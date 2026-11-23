@@ -27,3 +27,24 @@ description = "Instruction template loaded for its triggering scenario; edited s
 display_name = "Subagent completion instructions"
 advanced = false
 description = "Instruction template loaded for its triggering scenario; edited separately from main prompts."
+
+[dsh_worker_result]
+display_name = "DSH Worker result delivery"
+advanced = true
+description = "Result note appended to the chat when a background task finishes."
+[dsh_worker_continue]
+display_name = "DSH Worker follow-up note"
+advanced = true
+description = "Note prepended to a task that reuses a retained session."
+[dsh_work_command]
+display_name = "/work dispatch command"
+advanced = true
+description = "Internal task note passed to the Planner when /work is used."
+[dsh_worker_interrupted]
+display_name = "DSH Worker interrupted note"
+advanced = true
+description = "Note sent to the chat after a restart interrupted a running task."
+[dsh_worker_attachment_hint]
+display_name = "Attachment hint"
+advanced = true
+description = "Model-only hint added when a message carries a file attachment."

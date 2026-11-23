@@ -77,14 +77,14 @@ class ACPConnection:
         if initialized["protocolVersion"] != 1:
             raise ValueError("外部 Agent 未协商 ACP v1")
         capabilities = initialized["agentCapabilities"]
-        if not capabilities.get("mcpCapabilities", {}).get("http", False):
+        if mcp_port is not None and not capabilities.get("mcpCapabilities", {}).get("http", False):
             raise ValueError("外部 Agent 未声明 HTTP MCP 能力，无法挂载麦麦工具")
         return capabilities
 
     async def open_session(
-        self, cwd: str, mount: Dict[str, Any], session_id: Optional[str], timeout: float,
+        self, cwd: str, mount: Optional[Dict[str, Any]], session_id: Optional[str], timeout: float,
     ) -> Dict[str, Any]:
-        params = {"cwd": str(cwd), "mcpServers": [mount]}
+        params = {"cwd": str(cwd), "mcpServers": [mount] if mount is not None else []}
         if session_id:
             params["sessionId"] = session_id
         return await self.request("session/resume" if session_id else "session/new", params, timeout)

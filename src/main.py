@@ -219,6 +219,11 @@ class MainSystem:
 
         await desktop_pet_service.start()
 
+        from src.agent.worker.pool import worker_pool
+
+        # 上次进程遗留的在途任务在这里补通报；运行时未就绪时 start 会自行等几秒。
+        await worker_pool.start()
+
         # await asyncio.sleep(0.5) #防止logger输出飞了
 
         # 触发 ON_START 事件，事件总线会统一桥接到 IPC 插件运行时。

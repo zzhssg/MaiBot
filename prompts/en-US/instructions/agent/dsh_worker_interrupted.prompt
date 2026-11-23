@@ -1,0 +1,3 @@
+[DSH background task interrupted]
+Task {task_id} (summary: {brief}) was interrupted by a process restart and has no result.
+Tell the user in your usual voice; ask them to repeat it if they still need it. Do not pretend it finished or invent a result.

@@ -29,6 +29,7 @@ from src.common.message_repository import find_messages
 from src.common.utils.utils_config import ExpressionConfigUtils, JargonConfigUtils
 from src.config.config import global_config, model_config
 from src.agent.provider import AgentToolProvider
+from src.agent.worker.provider import DshWorkerToolProvider
 from src.files.provider import FileToolProvider
 from src.desktop_pet.chat_tools import ChatSessionToolProvider
 from src.desktop_pet.exploration_tools import ExplorationToolProvider
@@ -758,6 +759,20 @@ class MaisakaHeartFlowChatting(MaisakaRuntimeDisplayMixin):
         self._queue_proactive_turn(proactive_trigger_message)
         return {"task_id": task_id, "queued": True}
 
+    def append_context_note(self, *, source_kind: str, text: str) -> bool:
+        """把一条只给模型看的说明追加到上下文末尾，不触发新回合。"""
+
+        if not self._running:
+            return False
+        note = text.strip()
+        if not note:
+            return False
+        self._chat_history.append(InternalContextMessage(
+            raw_message=MessageSequence([TextComponent(note)]), visible_text=note,
+            timestamp=datetime.now(), message_id=f"{source_kind}:{uuid.uuid4().hex}", source_kind=source_kind,
+        ))
+        return True
+
     def _prepare_task_enqueue(self, task_id: str) -> SessionMessage:
         """在修改历史前检查运行状态、构建触发消息，并确保普通消费者存活。"""
         if not self._running:
@@ -1346,6 +1361,7 @@ class MaisakaHeartFlowChatting(MaisakaRuntimeDisplayMixin):
         )
         self._tool_registry.register_provider(PluginToolProvider())
         self._tool_registry.register_provider(AgentToolProvider())
+        self._tool_registry.register_provider(DshWorkerToolProvider())
         self._tool_registry.register_provider(ChatSessionToolProvider())
         self._tool_registry.register_provider(ExplorationToolProvider())
         self._tool_registry.register_provider(DesktopScreenToolProvider())

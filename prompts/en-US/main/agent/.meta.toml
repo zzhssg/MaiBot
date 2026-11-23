@@ -13,3 +13,8 @@ display_name = "Subagent"
 advanced = false
 description = "Main system prompt for an independent subagent task."
 
+
+[dsh_worker_task]
+display_name = "DSH Worker task brief"
+advanced = true
+description = "Brief template for a background DSH task."

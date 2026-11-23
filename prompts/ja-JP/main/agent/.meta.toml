@@ -13,3 +13,8 @@ display_name = "サブエージェント"
 advanced = false
 description = "サブエージェントの独立タスクに使う主要なシステムプロンプト。"
 
+
+[dsh_worker_task]
+display_name = "DSH Worker タスク説明"
+advanced = true
+description = "DSH に渡すバックグラウンドタスクの説明テンプレート。"

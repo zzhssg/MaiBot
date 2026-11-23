@@ -224,6 +224,13 @@ async def graceful_shutdown(main_system: MainSystem | None = None) -> bool:
             await _await_shutdown_step(desktop_pet_service.stop(), timeout=6.0, step_name="停止桌宠") and success
         )
         # 消息生产者先于插件、电脑及存储关闭，避免在依赖销毁后继续调用工具。
+        from src.agent.worker.pool import worker_pool
+
+        # worker 也持有 DSH 子进程，必须早于聊天循环关闭；关停期间取消的任务不回送。
+        success = (
+            await _await_shutdown_step(worker_pool.close(), timeout=8.0, step_name="停止 DSH Worker")
+            and success
+        )
         success = (
             await _await_shutdown_step(heartflow_manager.shutdown(), timeout=5.0, step_name="停止聊天循环")
             and success

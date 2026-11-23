@@ -5,6 +5,44 @@ from typing import Dict, List, Literal
 from src.config.config_base import ConfigBase, Field
 
 
+class WorkerConfig(ConfigBase):
+    """DSH Worker：把需要动电脑的活派给本机 dsh，结果回到当前聊天。"""
+
+    enabled: bool = Field(default=False, json_schema_extra={
+        "label": {"zh_CN": "启用 DSH Worker"}, "x-widget": "switch",
+    })
+    """启用后 Planner 可以把读文件、改代码、搜索、屏幕操作等任务派给本机 dsh 执行；关闭时不暴露任何 worker 工具。"""
+
+    allow_users: List[str] = Field(default_factory=list, json_schema_extra={"label": {"zh_CN": "允许派发任务的私聊用户"}})
+    """格式为 platform:user_id，例如 qq:123456。与 agent 白名单相互独立，避免开了传话就等于开了电脑。
+    群聊成员无法单独区分，请使用 allow_groups；两个白名单均为空时只有主人私聊可以用。"""
+
+    allow_groups: List[str] = Field(default_factory=list, json_schema_extra={"label": {"zh_CN": "允许派发任务的群聊"}})
+    """格式为 platform:group_id，例如 qq:123456；默认空，群聊不获得电脑能力。"""
+
+    screen_allow_users: List[str] = Field(default_factory=list, json_schema_extra={"label": {"zh_CN": "允许屏幕操作的用户"}})
+    """格式为 platform:user_id。填写后才允许把 screen=true 的任务交给 dsh Desktop；默认空表示全部禁止。
+    屏幕操作不可回滚，只应对自己开放的私聊配置。"""
+
+    max_concurrent: int = Field(default=2, ge=1, le=8, json_schema_extra={"label": {"zh_CN": "并发任务上限"}})
+    """同时运行的 worker 任务数，超出的任务排队；调大前先确认机器能承受。"""
+
+    timeout: float = Field(default=900, gt=0, json_schema_extra={"label": {"zh_CN": "单任务超时（秒）"}})
+    """超时后取消该任务所在的 DSH 会话并标记超时，不自动重跑。"""
+
+    session_ttl_seconds: float = Field(default=1800, gt=0, json_schema_extra={
+        "label": {"zh_CN": "会话保留（秒）"}, "advanced": True,
+    })
+    """任务结束后保留 DSH 会话的秒数；期间同一件事的追问用 continue_from 复用上下文，超时自动关闭。"""
+
+    max_sessions: int = Field(default=4, ge=1, le=8, json_schema_extra={"label": {"zh_CN": "保留会话上限"}, "advanced": True})
+    """同时保留的 DSH 会话数量；超出时关闭最早过期的那个。"""
+
+    workspace: str = Field(default="", json_schema_extra={"label": {"zh_CN": "工作目录"}})
+    """必须是已存在的绝对路径，例如 /Users/me/code；留空使用 data/agent/worker/workspace。
+    填相对路径或 ~ 会直接报错，不在连接时创建目录。"""
+
+
 class AgentConfig(ConfigBase):
     __ui_parent__ = "experimental"
     __ui_label__ = "外接 Agent"
@@ -73,3 +111,5 @@ class AgentConfig(ConfigBase):
     acp_timeout: float = Field(default=60, gt=0, json_schema_extra={"label": {"zh_CN": "ACP 连接与关停超时（秒）"}, "advanced": True})
     """握手、会话恢复和取消确认的等待时间，不限制任务执行时长。"""
 
+    worker: WorkerConfig = Field(default_factory=WorkerConfig)
+    """DSH Worker 配置，复用上面的连接设置但不要求启用独立 Agent 连接。"""

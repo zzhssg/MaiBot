@@ -27,3 +27,24 @@ description = "場面に応じて読み込む指示テンプレート。主要�
 display_name = "サブエージェントの完了通知"
 advanced = false
 description = "場面に応じて読み込む指示テンプレート。主要な Prompt とは別に編集します。"
+
+[dsh_worker_result]
+display_name = "DSH Worker 結果送信"
+advanced = true
+description = "バックグラウンドタスク終了時にチャットへ送る結果説明。"
+[dsh_worker_continue]
+display_name = "DSH Worker 追記説明"
+advanced = true
+description = "保持したセッションを再利用するタスクの冒頭に付ける説明。"
+[dsh_work_command]
+display_name = "/work 派遣指示"
+advanced = true
+description = "/work 受信時に Planner へ渡す内部タスク説明。"
+[dsh_worker_interrupted]
+display_name = "DSH Worker 中断説明"
+advanced = true
+description = "再起動で中断したタスクをチャットへ知らせる説明。"
+[dsh_worker_attachment_hint]
+display_name = "添付ファイルのヒント"
+advanced = true
+description = "ファイル添付を受信したときにモデルへだけ渡すヒント。"

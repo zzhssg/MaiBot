@@ -27,3 +27,24 @@ description = "按触发场景加载的指令模板；与主要 Prompt 分开编
 display_name = "子代理完成指令"
 advanced = false
 description = "按触发场景加载的指令模板；与主要 Prompt 分开编辑。"
+
+[dsh_worker_result]
+display_name = "DSH Worker 结果回送"
+advanced = true
+description = "后台任务结束后送回聊天的结果说明。"
+[dsh_worker_continue]
+display_name = "DSH Worker 追问说明"
+advanced = true
+description = "复用保留会话时附在任务前面的说明。"
+[dsh_work_command]
+display_name = "/work 派单指令"
+advanced = true
+description = "收到 /work 时交给 Planner 的内部任务说明。"
+[dsh_worker_interrupted]
+display_name = "DSH Worker 中断说明"
+advanced = true
+description = "进程重启后回送的在途任务中断说明。"
+[dsh_worker_attachment_hint]
+display_name = "附件提示"
+advanced = true
+description = "收到文件附件时给模型的只读提示，不写入聊天记录。"

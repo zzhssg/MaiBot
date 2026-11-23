@@ -13,3 +13,8 @@ display_name = "子代理"
 advanced = false
 description = "子代理独立任务的主要系统提示词。"
 
+
+[dsh_worker_task]
+display_name = "DSH Worker 任务说明"
+advanced = true
+description = "派给 DSH 的后台任务说明模板。"
