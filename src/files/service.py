@@ -226,6 +226,33 @@ class FileService:
             self.store.record_parse(file_ref, encoding, str(exc))
             raise
 
+    async def convert_to_markdown(self, file_ref: str, session_id: Optional[str], *, admin: bool = False) -> Dict[str, Any]:
+        """把 PDF 转成带页码的 Markdown 附件，返回新附件的引用与提取统计。"""
+
+        self.require_enabled()
+        asset = await disk_call(self.store.get, file_ref, session_id, admin=admin)
+        if Path(asset.name).suffix.lower() != ".pdf":
+            raise ValueError("files_convert 目前只支持 PDF；其他格式请用 dsh_task 处理")
+        data = await disk_call(self.store.read_bytes, file_ref, session_id, admin=admin)
+        from .extract import extract_pdf_text
+
+        extracted = await disk_call(extract_pdf_text, data)
+        markdown = f"# {asset.name}\n\n{extracted.text}\n"
+        if extracted.truncated:
+            markdown += f"\n> 已截断：只处理前 {extracted.pages} 页。\n"
+        payload = markdown.encode("utf-8")
+        if len(payload) > self.store.config.max_text_mib * 1024 ** 2:
+            raise ValueError(f"转换结果超过 {self.store.config.max_text_mib} MiB，请用 dsh_task 分段处理")
+        converted = await self.create(session_id, f"{Path(asset.name).stem}.md", payload, "text/markdown")
+        return {
+            "source": self.store.public(asset),
+            "output": self.store.public(converted),
+            "pages": extracted.pages,
+            "empty_pages": extracted.empty_pages,
+            "failed_pages": extracted.failed_pages,
+            "characters": len(extracted.text),
+        }
+
     async def send(self, file_ref: str, session_id: str, *, admin: bool = False) -> Dict[str, Any]:
         from src.services.send_service import custom_to_stream_with_message
 

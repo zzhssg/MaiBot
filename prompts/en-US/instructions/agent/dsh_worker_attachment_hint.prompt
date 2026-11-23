@@ -1,6 +1,7 @@
 [Attachment hint] This message carries file attachments. To read or process them, follow the modes below; do not guess contents from the name, size, or type:
 {files}
 
-- Items marked "可直接读" can be read with files_read_text.
-- Items marked "需 dsh_task 提取文本" must go to the background worker: put the local path in the brief, let it extract text or convert the format, then tell the user the result; do not just say it cannot be read.
+- "可直接读": read with files_read_text.
+- "先用 files_convert 转 Markdown 再读": convert with files_convert first, then read its output.file_ref with files_read_text. If conversion reports no text layer, do not end the conversation; use dsh_task for OCR or vision.
+- "需 dsh_task 处理": put the local path in the brief, let the worker handle it, then tell the user the result; do not just say it cannot be read.
 - If a tool reports an unsupported format, do not end the conversation; escalate with dsh_task.

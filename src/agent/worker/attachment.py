@@ -34,16 +34,21 @@ def collect_attachments(message: "SessionMessage") -> List[Dict[str, str]]:
     return items
 
 
-def needs_worker(suffix: str) -> bool:
-    """文件工具只解析纯文本；其他类型交给 worker 提取。"""
+def attachment_mode(name: str) -> str:
+    """按扩展名给出处理方式：直接读、先转 Markdown、还是交给 worker。"""
 
-    return suffix.lower() not in SUPPORTED_TEXT_SUFFIXES
+    suffix = Path(name).suffix.lower()
+    if suffix in SUPPORTED_TEXT_SUFFIXES:
+        return "可直接 files_read_text"
+    if suffix == ".pdf":
+        return "先用 files_convert 转 Markdown 再读"
+    return "需 dsh_task 处理"
 
 
 def build_attachment_hint(attachments: List[Dict[str, str]]) -> str:
     lines = []
     for item in attachments:
-        mode = "需 dsh_task 提取文本" if needs_worker(Path(item["name"]).suffix) else "可直接 files_read_text"
+        mode = attachment_mode(item["name"])
         path = item["path"] or "未缓存，先调用 files_download"
         lines.append(f"- {item['name']}（file_ref: {item['file_ref']}，{mode}）本地路径：{path}")
     return load_prompt("dsh_worker_attachment_hint", files="\n".join(lines)).strip()

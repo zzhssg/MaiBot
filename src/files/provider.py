@@ -26,6 +26,7 @@ class FileToolProvider:
                 "encoding": {"type": "string", "enum": ["utf-8-sig", "utf-8", "utf-16", "gb18030"]}}, ["file_ref"]),
             ("files_create_text", "将文本保存成当前聊天的附件原件；不会自动发送。", {
                 "name": {"type": "string"}, "text": {"type": "string", "maxLength": 200000}}, ["name", "text"]),
+            ("files_convert", "把当前聊天的 PDF 转成带页码的 Markdown 附件，返回 output.file_ref，再用 files_read_text 读取；扫描件没有文本层时会报错，改用 dsh_task。", ref, ["file_ref"]),
             ("files_send", "将当前聊天的附件发送到当前聊天；结果 unknown 时不要自动重发。", ref, ["file_ref"]),
         ]
         return [ToolSpec(name=name, description=description, provider_name=self.provider_name, provider_type=self.provider_type,
@@ -55,6 +56,8 @@ class FileToolProvider:
                 if len(args["text"]) > 200000:
                     raise ValueError("单次生成文本超过 200000 字符")
                 result = service.store.public(await service.create(session_id, args["name"], args["text"].encode("utf-8"), "text/plain"))
+            elif name == "files_convert":
+                result = await service.convert_to_markdown(args["file_ref"], session_id)
             elif name == "files_send":
                 result = await service.send(args["file_ref"], session_id)
             else:

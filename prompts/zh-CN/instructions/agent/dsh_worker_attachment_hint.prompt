@@ -2,5 +2,6 @@
 {files}
 
 - 标「可直接读」的用 files_read_text。
-- 标「需 dsh_task 提取」的把本地路径写进 brief，让 worker 提取文本或转换格式，再把结果告诉用户；不要只说读不了。
+- 标「先转 Markdown」的先用 files_convert 转换，再用 files_read_text 读返回的 output.file_ref；转换报「没有文本层」时不要结束对话，改用 dsh_task 走视觉识别或 OCR。
+- 标「需 dsh_task 处理」的把本地路径写进 brief，让 worker 处理，再把结果告诉用户；不要只说读不了。
 - 工具报「不支持解析」时不要结束对话，改用 dsh_task 排查。
