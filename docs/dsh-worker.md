@@ -253,3 +253,37 @@ worker 用的是 `dsh --profile acp`。这个 profile 与 Desktop 的 profile **
 | `worker.timeout` | `900` | 单任务超时秒数 |
 | `worker.workspace` | `data/agent/worker/workspace` | 默认不碰用户主目录 |
 | `worker.screen_allow_users` | 空 | CUA 只对列出的主人开放 |
+
+## 本机部署与验收（2026-11-23，mini）
+
+- 正式实例：`~/apps/maibot`（配置与数据）；代码在 `~/code/MaiBot`，以 **editable** 方式装进 uv tool `maibot`，
+  改提示词或代码后重启即生效，不用重装。
+- `[agent] acp_command` 指向 `/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`
+  （launchd 的最小 PATH 里没有 dsh）。`acp_model = '["deepseek-account","deepseek-flash"]'`：
+  默认 `deepseek-official` 路由在没有 `DEEPSEEK_API_KEY` 时报 `no API key`，账号路由直接用 dsh 已保存的凭据。
+- `[agent.worker] enabled=true`，两个白名单留空 = 只有主人私聊能用；`workspace = "/Users/morty/code"`。
+- `[chat.reply_style]` 的私聊/群聊提示词追加了「执行诚信」条款：没有工具结果或后台任务结果作依据，
+  不许声称「已经/正在/马上」做了某事，也不许编造进度。
+
+### 提示词契约（v2）
+
+- `dsh_worker_task`：结果按三段给（结论 / 证据 / 未完成）；没有证据不许写「完成」；
+  失败要写清已经排除了哪些可能、下一步查什么。
+- `dsh_worker_result`：转述必须带至少一个可核对事实；`failed/timeout` 必须说清卡点与下一步，
+  禁止「我再看看」「稍等」；不许把「已派发」说成「已完成」。
+
+### 评测集（7 条）
+
+t1 统计文件、t2 查日志原文、t3 磁盘、t4 写脚本并运行、t5 生成 CSV、t6 全文统计、t7 不存在的 PDF（考诚实）。
+实测：7/7 完成，6.0–20.7 秒；t7 如实报「不存在」并给出 4 项检查与退出码，没有编造内容。
+脚本 `/tmp/eval_worker.py`，结果 `/tmp/eval_worker_result.json`；重跑：
+
+```sh
+MAIBOT_INSTANCE_DIR=~/apps/maibot ~/.local/share/uv/tools/maibot/bin/python /tmp/eval_worker.py
+```
+
+### 运维
+
+- 重启：`launchctl kickstart -k gui/$(id -u)/local.maibot`
+- 日志：`~/apps/maibot/logs/app_*.jsonl`；dsh 的 stderr 以 `[agent.acp]` 前缀出现
+- 回滚到 release：`uv tool install --force maibot==1.4.8`（worker 工具随之消失，配置里的 `[agent.worker]` 会被忽略）
