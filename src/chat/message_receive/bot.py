@@ -596,6 +596,10 @@ class ChatBot:
         if not allowed:
             self._mark_command_message(message, intercept_message_level=1)
             await self._store_intercepted_command_message(message)
+            logger.warning(
+                f"/work 被拒绝: platform={message.platform} user={message.message_info.user_info.user_id} "
+                f"group={group_info.group_id if group_info else ''} session={message.session_id}"
+            )
             await text_to_stream("当前聊天没有后台执行权限。", message.session_id, storage_message=False)
             return True
         if not content:
