@@ -137,12 +137,18 @@ class ChatReplyPromptMixin:
         scene_name = "group" if scene.is_group else "private"
         system_template = f"reply_mai_replier_{scene_name}_system" if mai_replier else f"reply_{scene_name}_system"
         # Mai Replier 默认模板保持 persona-only，其余背景和注意力提示仅供普通回复使用。
+        reply_args = reply_tool_args or {}
+        must_include = reply_args.get("must_include")
+        delivery_mode = str(reply_args.get("reply_style") or "").strip() == "交付" or bool(must_include)
         system_prompt = self._load_prompt(
             system_template,
             identity=self._build_personality_prompt(),
             chat_attention_block="" if mai_replier else self._build_chat_attention_block(session_id),
             attention_drift_block="" if mai_replier else scene.prompts.attention_drift_block(),
         ).strip()
+        if delivery_mode:
+            # 交付模式优先于人设里的「不接任务/不写报告」，否则事实会被风格挡掉。
+            system_prompt = f"{self._build_delivery_override()}\n\n{system_prompt}"
         if not mai_replier:
             # 普通回复保留附件参考和重复回复提醒。
             extra_blocks = [reply_requirements]
@@ -166,7 +172,7 @@ class ChatReplyPromptMixin:
             reply_message=reply_message,
             reply_reason=reply_reason,
             chat_anlyze=str((reply_tool_args or {}).get("chat_anlyze") or ""),
-            must_include=(reply_tool_args or {}).get("must_include"),
+            must_include=must_include,
             expression_intent=(reply_tool_args or {}).get("expression_intent"),
             expression_habits=expression_habits,
             reply_requirements=reply_requirements,
@@ -343,6 +349,25 @@ class ChatReplyPromptMixin:
             "planner_reasoning": combined_reference,
             "must_include_block": self._build_must_include_block(must_include),
         }
+
+    @staticmethod
+    def _build_delivery_override() -> str:
+        """交付模式下覆盖人设限制的系统级指令；闲聊人设不能拿来挡事实。"""
+
+        texts = {
+            "zh-CN": "【交付模式·优先级最高】这次是在交代任务结果。人设里「不接任务、不写报告、不总结、"
+                     "只说闲话」之类的限制本次不适用：必须如实给出结果和事实，不得用「不知道」「懒得说」"
+                     "「不接任务」回避，也不得把任务推回给用户。语气仍然是你自己，但事实必须说全。",
+            "en-US": "[Delivery mode, highest priority] You are reporting a task result this time. Persona rules "
+                     "such as 'do not take tasks', 'do not write reports', 'keep it casual' do not apply now: "
+                     "state the result and facts truthfully, never dodge with 'don't know' or 'can't be bothered', "
+                     "and never push the task back. Keep your own voice, but say the facts in full.",
+            "ja-JP": "【納品モード・最優先】今回は作業結果の報告です。「仕事は受けない・報告は書かない・要約しない・"
+                     "雑談だけ」といった人格上の制限は今回は適用しません。結果と事実を正直に伝え、"
+                     "「知らない」「面倒」「受け付けない」で逃げず、ユーザーに作業を押し戻さないこと。"
+                     "口調は自分らしくてよいが、事実は省略しない。",
+        }
+        return texts.get(get_locale(), texts["zh-CN"])
 
     @staticmethod
     def _build_must_include_block(must_include: Optional[List[Any]]) -> str:
