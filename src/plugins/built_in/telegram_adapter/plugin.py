@@ -24,7 +24,7 @@ from .codec import (
     reply_parameters,
 )
 from .media import prepare_image, sticker_to_image, voice_to_opus, voice_to_wav
-from .settings import AdapterSettings
+from .settings import TOKEN_ENV, AdapterSettings
 from .storage import AdapterStore
 
 GATEWAY_NAME = "telegram_gateway"
@@ -49,7 +49,7 @@ class TelegramAdapterPlugin(MaiBotPlugin):
     ]
 
     async def get_config_widget_state(self) -> Dict[str, ConfigWidgetState]:
-        configured = bool(self.config.telegram.bot_token.strip())
+        configured = bool(self.config.telegram.resolved_bot_token)
         text = (f"已连接：@{self._username}" if self._ready
                 else "连接中 / 等待重连" if self._worker is not None and not self._worker.done()
                 else "尚未连接" if configured else "请先填写 Bot Token；Telegram Bot API 无需扫码登录")
@@ -101,8 +101,8 @@ class TelegramAdapterPlugin(MaiBotPlugin):
                 self._start()
 
     def _start(self) -> None:
-        if not self.config.telegram.bot_token.strip():
-            self.ctx.logger.error("Telegram 适配器缺少 bot_token，请在插件配置中填写")
+        if not self.config.telegram.resolved_bot_token:
+            self.ctx.logger.error(f"Telegram 适配器缺少 bot_token：请在插件配置填写，或设置环境变量 {TOKEN_ENV}")
             return
         self._worker = asyncio.create_task(self._run(), name="telegram-adapter")
 
@@ -140,7 +140,7 @@ class TelegramAdapterPlugin(MaiBotPlugin):
         client: Optional[TelegramClient] = None
         try:
             client = TelegramClient(
-                settings.bot_token.strip(),
+                settings.resolved_bot_token,
                 settings.api_base_url.strip(),
                 settings.proxy_url.strip(),
                 settings.poll_timeout_sec,
@@ -175,10 +175,14 @@ class TelegramAdapterPlugin(MaiBotPlugin):
                             await self._process_update(update, client)
                             offset = update["update_id"] + 1
                 except TelegramAPIError as exc:
-                    if exc.code < 500 and exc.code != 429:
+                    # 409 是另一个实例抢走 getUpdates 长轮询，对方停下后本进程可恢复。
+                    if exc.code < 500 and exc.code not in {409, 429}:
                         raise
                     await self._set_ready(False)
-                    self.ctx.logger.warning("Telegram 连接暂时不可用: %s", exc)
+                    if exc.code == 409:
+                        self.ctx.logger.warning("同一个 Bot Token 有另一个实例在长轮询（409），%s 秒后重试", settings.reconnect_delay_sec)
+                    else:
+                        self.ctx.logger.warning("Telegram 连接暂时不可用: %s", exc)
                     await asyncio.sleep(settings.reconnect_delay_sec)
                 except TelegramTransportError as exc:
                     await self._set_ready(False)

@@ -1,6 +1,10 @@
 from typing import ClassVar
 
+import os
+
 from maibot_sdk import Field, PluginConfigBase
+
+TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
 
 
 class PluginSettings(PluginConfigBase):
@@ -18,7 +22,7 @@ class TelegramSettings(PluginConfigBase):
     bot_token: str = Field(
         default="",
         repr=False,
-        description="BotFather 签发的机器人 Token",
+        description=f"BotFather 签发的机器人 Token；留空时读取环境变量 {TOKEN_ENV}",
         json_schema_extra={"x-widget": "password"},
     )
     api_base_url: str = Field(default="https://api.telegram.org", description="Bot API 地址，可使用本地 Bot API 服务")
@@ -34,6 +38,11 @@ class TelegramSettings(PluginConfigBase):
         default=20, ge=1, le=50, description="单个媒体下载上限（MB）；云端 Bot API 下载上限为 20 MB"
     )
     media_timeout_sec: int = Field(default=60, ge=10, le=300, description="媒体转换超时（秒）")
+
+    @property
+    def resolved_bot_token(self) -> str:
+        """配置优先；配置留空时读环境变量，让 Keychain 保存唯一一份 Token。"""
+        return self.bot_token.strip() or os.environ.get(TOKEN_ENV, "").strip()
 
 
 class AdapterSettings(PluginConfigBase):

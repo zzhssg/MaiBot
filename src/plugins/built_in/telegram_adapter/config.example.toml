@@ -3,6 +3,7 @@ enabled = false
 config_version = "0.1.0"
 
 [telegram]
+# 留空时读取环境变量 TELEGRAM_BOT_TOKEN（由 fnox exec 从 Keychain 注入）
 bot_token = ""
 api_base_url = "https://api.telegram.org"
 proxy_url = ""
