@@ -125,11 +125,33 @@ uv pip install --python "$(head -1 ~/.local/bin/maibot | sed 's/^#!//')" "pypdf>
 9. `provider.list_tools` 与 `_allowed` 重复判断 `enabled`（无害）。
 10. `/work` 与 `convert_to_markdown` 只有单元测试，没有端到端用例。
 
-## 7. 同步与归档约定
+## 7. 三端同步约定
 
-- 仓库本分支是唯一事实来源；实例配置（`config/`、`host/`、`data/`）不入库。
-- 本机存在另一会话未提交的 reply 侧改动（2026-11-23 20:08），不在本次归档范围内。
-- 归档提交：`f723729`…`de8d457`（7 个 worker/files 相关提交），基于 `origin/main` 之上共 10 个提交。
+拓扑：**远端（fork）/ 本机（开发+验收）/ mini（线上）**。仓库本分支是唯一事实来源；
+实例配置（`config/`、`host/`、`data/`）只存在于部署机，不入库。
+
+- 远端：`fork` = `zzhssg/MaiBot`，分支 `perf/off-critical-path`。原仓库 `Mai-with-u/MaiBot` 无写权限。
+- 本机：开发、跑测试、验收；提交后先推 fork。
+- mini：单向从本机 rsync，不反向修改；同步后必须核对 sha256 并重启。
+
+```sh
+# 本机 → mini（只同步代码与提示词，不碰实例数据）
+rsync -az --itemize-changes --exclude '__pycache__' --exclude '*.pyc' \
+  src/ prompts/ mini:code/MaiBot/src/ 2>/dev/null   # 提示词单独一条更稳：
+rsync -az --itemize-changes --exclude '__pycache__' --exclude '*.pyc' prompts/ mini:code/MaiBot/prompts/
+rsync -az pyproject.toml requirements.txt mini:code/MaiBot/
+rsync -az docs/dsh-worker.md docs/dsh-worker-rollout.md docs/agent-connections.md mini:code/MaiBot/docs/
+
+# 核对（任选关键文件）
+shasum -a 256 src/chat/replyer/reply_prompt.py
+ssh mini "shasum -a 256 -- ~/code/MaiBot/src/chat/replyer/reply_prompt.py"
+
+# 重启线上并冒烟
+ssh mini 'cd ~/apps/maibot && maibot host restart --bot-id aeea7f9f9add435cbfde9dab69939c7b'
+```
+
+当前状态（2026-11-23 20:2x）：本机与 fork 均为 `961e8f4`；mini 已同步同一份代码并通过
+PDF 冒烟（`files_convert` → `files_read_text` → 回复 ORANGE-204）。
 
 ## 8. 复现步骤
 
