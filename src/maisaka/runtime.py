@@ -11,6 +11,7 @@ import uuid
 from src.chat.debounce import MessageDebouncer
 from src.chat.debounce.message_adapter import get_message_shape
 from src.chat.heart_flow.heartFC_utils import CycleDetail
+from src.chat.image_system.prefetch import prefetch_images
 from src.chat.message_receive.chat_manager import BotChatSession, chat_manager
 from src.chat.message_receive.message import SessionMessage
 from src.chat.replyer.expression_vector_index import expression_vector_index
@@ -176,6 +177,7 @@ class MaisakaHeartFlowChatting(MaisakaRuntimeDisplayMixin):
         self._internal_loop_task: Optional[asyncio.Task] = None
         self._message_turn_scheduled = False
         self._deferred_message_turn_task: Optional[asyncio.Task[None]] = None
+        self._image_prefetch_task: Optional[asyncio.Task[None]] = None
         self._fixed_message_debouncer = MessageDebouncer()
         self._message_debounce_was_enabled = False
         self._last_message_received_at = 0.0
@@ -551,6 +553,7 @@ class MaisakaHeartFlowChatting(MaisakaRuntimeDisplayMixin):
         self._mark_message_turn_unscheduled()
         self._cancel_deferred_message_turn_task()
         self._cancel_wait_timeout_task()
+        self._cancel_image_prefetch_task()
         await self._cancel_trimmed_history_learning_task()
         await self._stop_background_subagents()
         while not self._internal_turn_queue.empty():
@@ -1163,6 +1166,28 @@ class MaisakaHeartFlowChatting(MaisakaRuntimeDisplayMixin):
         self._cancel_deferred_message_turn_task()
         self._message_turn_scheduled = True
         self._internal_turn_queue.put_nowait("message")
+        # 批次已通过发言判定，趁防抖窗口把图片识别先跑起来。
+        self._prefetch_pending_images()
+
+    def _cancel_image_prefetch_task(self) -> None:
+        """停止仍在跑的图片预取，避免退出后继续写图片记录。"""
+
+        if self._image_prefetch_task is None:
+            return
+        self._image_prefetch_task.cancel()
+        self._image_prefetch_task = None
+
+    def _prefetch_pending_images(self) -> None:
+        """在防抖等待期间提前启动本批消息的图片识别。"""
+
+        if self._image_prefetch_task is not None and not self._image_prefetch_task.done():
+            return
+        pending_messages = self.message_cache[self._last_processed_index :]
+        if not pending_messages:
+            return
+        self._image_prefetch_task = asyncio.create_task(
+            prefetch_images(pending_messages, log_prefix=self.log_prefix)
+        )
 
     def _defer_message_turn_check(self, delay_seconds: float) -> None:
         """延迟后重新检查是否应投递消息触发。"""

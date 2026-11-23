@@ -77,6 +77,7 @@ from src.maisaka.context.messages import (
     WaitCompletedMessage,
     contains_complex_message,
 )
+from src.maisaka.context.injection_cache import PlannerInjectionCache
 from src.maisaka.context.post_processor import process_chat_history_after_cycle
 from src.maisaka.context.history import (
     build_prefixed_message_sequence,
@@ -163,6 +164,7 @@ class MaisakaReasoningEngine:
         self._runtime = runtime
         self._last_reasoning_content: str = ""
         self._active_logical_turn_id: str | None = None
+        self._injection_cache = PlannerInjectionCache()
 
         self._turn_passive_replyer: Optional[bool] = None
 
@@ -646,21 +648,29 @@ class MaisakaReasoningEngine:
         self._runtime._update_stage_status("组织上下文", "正在准备：可用工具", round_text=round_text)
         action_tool_definitions, deferred_tools_reminder = await self._build_action_tool_definitions()
         context_timings = {"可用工具": time.perf_counter() - context_started}
-        self._runtime._update_stage_status("组织上下文", "正在准备：黑话参考", round_text=round_text)
-        jargon_started = time.perf_counter()
-        try:
-            jargon_reference_message = self._refresh_jargon_reference_message()
-            if jargon_reference_message is not None:
-                logger.debug(f"{self._runtime.log_prefix} 已刷新黑话参考消息")
-        except Exception as exc:
-            logger.debug(f"{self._runtime.log_prefix} 黑话参考消息刷新失败，已跳过: {exc}")
-        context_timings["黑话参考"] = time.perf_counter() - jargon_started
-        injected_user_messages = await self._build_planner_injected_user_messages(
-            profile_message=trigger_message,
-            source_messages=source_messages,
-            round_text=round_text,
-            context_timings=context_timings,
-        )
+        injection_key = self._injection_cache.build_key(trigger_message.message_id, source_messages)
+        injected_user_messages = self._injection_cache.get(injection_key)
+        if injected_user_messages is None:
+            self._runtime._update_stage_status("组织上下文", "正在准备：黑话参考", round_text=round_text)
+            jargon_started = time.perf_counter()
+            try:
+                jargon_reference_message = self._refresh_jargon_reference_message()
+                if jargon_reference_message is not None:
+                    logger.debug(f"{self._runtime.log_prefix} 已刷新黑话参考消息")
+            except Exception as exc:
+                logger.debug(f"{self._runtime.log_prefix} 黑话参考消息刷新失败，已跳过: {exc}")
+            context_timings["黑话参考"] = time.perf_counter() - jargon_started
+            injected_user_messages = await self._build_planner_injected_user_messages(
+                profile_message=trigger_message,
+                source_messages=source_messages,
+                round_text=round_text,
+                context_timings=context_timings,
+            )
+            self._injection_cache.put(injection_key, injected_user_messages)
+        else:
+            # 同一批消息的后续轮次直接复用，避免重复查画像、图片记忆和黑话。
+            context_timings["黑话参考"] = 0.0
+            logger.info(f"{self._runtime.log_prefix} 注入复用：本批消息未变化，跳过记忆与参考重查")
         if not resolve_enable_visual_planner():
             log_pending_image_recognition_before_text_planner(
                 self._runtime._chat_history,
@@ -1065,6 +1075,8 @@ class MaisakaReasoningEngine:
                     self._runtime._chat_loop_service.passive_replyer_override = self._turn_passive_replyer
                     self._active_logical_turn_id = turn_start_context.logical_turn_id or uuid.uuid4().hex
                     round_index = self._runtime._message_turn_scheduler.start_planner_turn(self._active_logical_turn_id)
+                    # 新逻辑回合的注入必须按新消息重算，不能沿用上一回合内容。
+                    self._injection_cache.clear()
                     if force_continue_reason := self._runtime._consume_forced_turn_reason():
                         logger.info(f"{self._runtime.log_prefix} {force_continue_reason}")
                     while round_index < self._runtime._max_internal_rounds:

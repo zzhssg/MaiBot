@@ -2,6 +2,8 @@
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+import asyncio
+import time
 
 from sqlalchemy import update
 from sqlmodel import select
@@ -43,6 +45,13 @@ class MaisakaExpressionSelector:
     """负责在 replyer 侧完成表达方式筛选与子代理二次选择。"""
 
     _VECTOR_CLUSTER_POOL_SIZE = 16
+    # 表达候选整表读取结果短暂保留：学习批处理有冷却间隔，短 TTL 不会让新表达长期不可见，
+    # 但能避免每次回复都同步重读整张表并挡住事件循环。
+    _CANDIDATE_CACHE_TTL_SECONDS = 30.0
+    _CANDIDATE_CACHE_MAX_SESSIONS = 128
+
+    def __init__(self) -> None:
+        self._candidate_cache: Dict[str, tuple[float, List[dict[str, Any]]]] = {}
 
     @staticmethod
     def _get_runtime_manager() -> Any:
@@ -111,6 +120,20 @@ class MaisakaExpressionSelector:
                 }
             )
         return all_candidates
+
+    async def _load_expression_candidates(self, session_id: str) -> List[dict[str, Any]]:
+        """读取本会话的表达候选，短时间内复用同一份结果。"""
+
+        cached = self._candidate_cache.get(session_id)
+        now = time.monotonic()
+        if cached is not None and now < cached[0]:
+            return [dict(item) for item in cached[1]]
+
+        candidates = await asyncio.to_thread(self._load_all_expression_candidates, session_id)
+        if len(self._candidate_cache) >= self._CANDIDATE_CACHE_MAX_SESSIONS:
+            self._candidate_cache.clear()
+        self._candidate_cache[session_id] = (now + self._CANDIDATE_CACHE_TTL_SECONDS, candidates)
+        return [dict(item) for item in candidates]
 
     def _sample_legacy_expression_candidates(self, all_candidates: List[dict[str, Any]]) -> List[dict[str, Any]]:
         if len(all_candidates) < 10:
@@ -562,7 +585,7 @@ class MaisakaExpressionSelector:
             logger.info(f"表达方式选择已跳过：当前会话未启用表达方式，session_id={session_id}")
             return MaisakaExpressionSelectionResult()
 
-        all_candidates = self._load_all_expression_candidates(session_id)
+        all_candidates = await self._load_expression_candidates(session_id)
         if len(all_candidates) < 10:
             logger.info(f"表达方式选择已跳过：本地候选不足，session_id={session_id}")
             return MaisakaExpressionSelectionResult()

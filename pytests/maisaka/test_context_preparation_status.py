@@ -6,6 +6,7 @@ import asyncio
 import pytest
 
 from src.maisaka import reasoning_engine
+from src.maisaka.context.injection_cache import PlannerInjectionCache
 
 
 @pytest.mark.asyncio
@@ -33,6 +34,8 @@ async def test_context_status_tracks_parallel_injections(monkeypatch: pytest.Mon
     monkeypatch.setattr(reasoning_engine, "resolve_enable_visual_planner", lambda: True)
     monkeypatch.setattr(reasoning_engine.logger, "info", logs.append)
     engine = object.__new__(reasoning_engine.MaisakaReasoningEngine)
+    # 测试绕过 __init__ 构造引擎，注入缓存需要显式挂上。
+    engine._injection_cache = PlannerInjectionCache()
     engine._runtime = SimpleNamespace(
         session_id="session",
         log_prefix="[测试]",
@@ -48,7 +51,7 @@ async def test_context_status_tracks_parallel_injections(monkeypatch: pytest.Mon
 
     task = asyncio.create_task(
         engine._run_planner_request(
-            trigger_message=None,
+            trigger_message=SimpleNamespace(message_id="trigger"),
             source_messages=[],
             round_index=0,
             round_text="第 1 轮",

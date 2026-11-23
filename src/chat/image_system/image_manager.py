@@ -47,6 +47,12 @@ def _is_vlm_task_configured() -> bool:
 vlm = LLMServiceClient(task_name="vlm", request_type="image")
 
 
+def is_image_recognition_available() -> bool:
+    """是否配置了 VLM 任务；未配置时识图预取没有意义。"""
+
+    return _is_vlm_task_configured()
+
+
 class ImageManager:
     """图片描述管理器。"""
 
@@ -55,6 +61,8 @@ class ImageManager:
         _ensure_image_dir_exists()
         self._pending_description_tasks: Dict[str, asyncio.Task[None]] = {}
         self._description_sync_tasks: Set[asyncio.Task[None]] = set()
+        # 预取与正常链路可能同时保存同一张图片；保存串行化，避免同一临时文件被并发写入。
+        self._save_lock = asyncio.Lock()
         self.cleanup_legacy_image_registration_records()
 
         logger.info("图片管理器初始化完成")
@@ -357,6 +365,11 @@ class ImageManager:
 
     async def ensure_image_saved(self, image_bytes: bytes) -> MaiImage:
         """先保存图片记录，确保后续可以按哈希回填图片内容。"""
+
+        async with self._save_lock:
+            return await self._save_image_record(image_bytes)
+
+    async def _save_image_record(self, image_bytes: bytes) -> MaiImage:
         hash_str = hashlib.sha256(image_bytes).hexdigest()
 
         try:
