@@ -65,6 +65,7 @@ from .creative_language import (
 )
 from .gemini_output import GeminiReplyFormatError, normalize_gemini_reply
 from .maisaka_expression_selector import maisaka_expression_selector
+from .reply_model_route import select_reply_model_name
 from .reply_prompt import ChatReplyPromptMixin
 
 logger = get_logger("replyer")
@@ -920,7 +921,18 @@ class BaseMaisakaReplyGenerator(ChatReplyPromptMixin):
             active_task_name = str(before_request_kwargs.get("task_name") or default_task_name).strip()
             if not active_task_name:
                 active_task_name = default_task_name
-            active_model_name = str(before_request_kwargs.get("model_name") or "").strip() or None
+            # 插件可用 model_name 覆盖；没有覆盖且仍走默认任务时，按回复篇幅选思考或非思考档位。
+            routed_model_name = (
+                select_reply_model_name(dict(active_reply_tool_args))
+                if active_task_name == default_task_name
+                else None
+            )
+            active_model_name = str(before_request_kwargs.get("model_name") or "").strip() or routed_model_name
+            if routed_model_name:
+                logger.debug(
+                    "回复模型按篇幅改选: "
+                    f"风格={active_reply_tool_args.get('reply_style') or '未指定'} 模型={routed_model_name}"
+                )
             active_reply_requirements = self._build_reply_requirements(
                 str(before_request_kwargs.get("extra_prompt") or ""),
                 retry_constraints,

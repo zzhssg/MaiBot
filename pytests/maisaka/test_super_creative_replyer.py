@@ -126,7 +126,9 @@ def test_expression_intent_omits_empty_fields(locale: str, expected: str) -> Non
 
 
 @pytest.mark.asyncio
-async def test_enabled_translates_with_actual_replyer_and_hooks_receive_chinese(replyer) -> None:
+async def test_enabled_translates_with_actual_replyer_and_hooks_receive_chinese(replyer, monkeypatch) -> None:
+    # 回复模型由篇幅路由决定，这里固定路由结果，验证它被真正用作首选模型。
+    monkeypatch.setattr(maisaka_generator_base, "select_reply_model_name", lambda reply_tool_args: "routed-replyer")
     with use_locale("en-US"):
         success, result = await replyer.generator.generate_reply_with_context(chat_history=[], reply_reason="看看月亮")
         assert get_locale() == "en-US"
@@ -136,7 +138,7 @@ async def test_enabled_translates_with_actual_replyer_and_hooks_receive_chinese(
     language_instruction = "今回の返信は日本語で"
     system = next(item for item in replyer.calls[0]["items"] if isinstance(item, SystemMessageItem))
     assert language_instruction in get_item_text(system)
-    assert replyer.calls[0]["options"].model_name is None
+    assert replyer.calls[0]["options"].model_name == "routed-replyer"
     assert replyer.calls[1]["options"].model_name == "actual-replyer"
     assert get_item_text(replyer.calls[1]["items"][-1]).endswith("待翻译内容：月が笑っています。")
     assert len(replyer.calls[1]["items"]) == 1
@@ -150,6 +152,16 @@ async def test_enabled_translates_with_actual_replyer_and_hooks_receive_chinese(
     assert result.metrics.extra["replyer_translation_count"] == 1
     assert result.metrics.extra["replyer_attempt_count"] == 2
     assert result.metrics.extra["replyer_aggregate_total_tokens"] == 30
+
+
+@pytest.mark.asyncio
+async def test_unrouted_reply_keeps_task_selection(replyer, monkeypatch) -> None:
+    monkeypatch.setattr(maisaka_generator_base, "select_reply_model_name", lambda reply_tool_args: None)
+
+    success, _ = await replyer.generator.generate_reply_with_context(chat_history=[], reply_reason="看看月亮")
+
+    assert success
+    assert replyer.calls[0]["options"].model_name is None
 
 
 @pytest.mark.asyncio
