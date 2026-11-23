@@ -28,7 +28,7 @@ def tool_specs() -> List[ToolSpec]:
         ),
         (
             "dsh_status",
-            "查看后台 DSH 任务。task_id 留空时列出当前聊天的最近任务。",
+            "查看后台 DSH 任务。task_id 留空时列出当前聊天的最近任务；任务仍在跑时会提示不要轮询。",
             {"task_id": {"type": "string", "description": "任务 id；留空查看最近任务。"}},
             [],
         ),

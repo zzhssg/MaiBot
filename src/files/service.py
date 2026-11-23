@@ -212,7 +212,7 @@ class FileService:
         if asset.size > self.store.config.max_text_mib * 1024 ** 2:
             raise ValueError(f"文本解析超过 {self.store.config.max_text_mib} MiB 上限，仍可下载原文件")
         if Path(asset.name).suffix.lower() not in (".txt", ".md", ".markdown", ".csv", ".json"):
-            raise ValueError("第一期仅解析 TXT、Markdown、CSV、JSON 文本")
+            raise ValueError("当前文件工具只解析 TXT、Markdown、CSV、JSON；PDF、Office、压缩包等请用 dsh_task 派给后台提取文本，或先转换格式")
         try:
             data = self.store.read_bytes(file_ref, session_id, admin=admin)
             text = data.decode(encoding)

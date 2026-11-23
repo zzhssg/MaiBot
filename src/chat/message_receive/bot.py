@@ -11,7 +11,7 @@ from maim_message import MessageBase
 
 from src.common.paths import get_instance_root
 from src.common.runtime_loop import run_on_main_loop
-from src.agent.worker.attachment import build_attachment_hint, has_file_attachment
+from src.agent.worker.attachment import build_attachment_hint, collect_attachments
 from src.agent.worker.command import build_work_task_text, parse_work_command
 from src.agent.worker.policy import worker_allowed
 from src.chat.heart_flow.heartflow_message_processor import HeartFCMessageReceiver
@@ -1051,7 +1051,8 @@ class ChatBot:
 
             await get_file_service().ingest(message)
 
-            if has_file_attachment(message):
+            attachments = collect_attachments(message)
+            if attachments:
                 file_group_info = message.message_info.group_info
                 if worker_allowed(
                     session_id=message.session_id,
@@ -1069,7 +1070,7 @@ class ChatBot:
                         runtime = None
                     if runtime is not None:
                         runtime.append_context_note(
-                            source_kind="dsh_attachment_hint", text=build_attachment_hint(),
+                            source_kind="dsh_attachment_hint", text=build_attachment_hint(attachments),
                         )
 
             # message.update_chat_stream(chat)

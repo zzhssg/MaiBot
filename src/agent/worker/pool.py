@@ -95,6 +95,8 @@ class WorkerPool:
             detail["result"] = task.result[:2000]
             detail["result_chars"] = len(task.result)
             detail["session_retained"] = task.session in self._retained
+            if task.status == "running":
+                detail["notice"] = "任务仍在运行；结果会自动作为内部消息送回，不要轮询。"
             return detail
         tasks: List[DshTask] = self._registry.list_for_chat(chat_id)
         sessions = [

@@ -81,6 +81,10 @@ DSH 的正文是素材，不是回复。回送措辞在 `prompts/*/instructions/
 `status` 取值：`done` / `failed` / `timeout` / `cancelled`。失败时正文为空会把错误原因写进"结果"，
 保证麦麦至少能说清卡在哪。
 
+## 能力不足时
+
+`files_read_text` 只解析 TXT/Markdown/CSV/JSON。PDF、Office、压缩包、扫描件都会返回一条可执行的错误文案，要求改用 `dsh_task` 提取或转换，而不是停在「读不了」。附件提示也会把本地路径直接给 Planner，后台不必再靠文件名搜索。
+
 ## 路由
 
 **不做分类器。** 路由就是工具可见性 + 工具描述：
@@ -172,6 +176,7 @@ worker 用的是 `dsh --profile acp`。这个 profile 与 Desktop 的 profile **
 | `/work` 显式派单 | ✅ 日志出现 `dsh_work_command:...` 内部任务并立刻触发 Planner，Planner 随后调用 `dsh_task`；不依赖模型自己判断 |
 | 重启恢复 | ✅ 停机后写入一条遗留 running 记录再启动，日志出现 `dsh_worker_interrupted:...`，麦麦回复「任务没跑完 / 刚恢复就断了」，状态文件读后即删 |
 | 附件提示 | ✅ WebUI 上传 `note.txt`（暗号 731），Planner 上下文出现「附件提示」，模型自己选 `tool_search` → `files_read_text` 读出 731；提示只进上下文，不进聊天记录 |
+| PDF 附件 | ✅ 上传文本型 PDF（暗号 BLUE-731）：提示标成「需 `dsh_task` 提取」并给出 blob 路径，Planner 派单，worker 用 pypdf 提取并核对，48 秒后麦麦回复「BLUE-731」 |
 
 已知限制：
 

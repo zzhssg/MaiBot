@@ -1,1 +1,6 @@
-[Attachment hint] This message carries a file attachment (the [文件] entry below). To read or process it, hand it to the background worker with dsh_task; do not guess its contents from the name, size, or type.
+[Attachment hint] This message carries file attachments. To read or process them, follow the modes below; do not guess contents from the name, size, or type:
+{files}
+
+- Items marked "可直接读" can be read with files_read_text.
+- Items marked "需 dsh_task 提取文本" must go to the background worker: put the local path in the brief, let it extract text or convert the format, then tell the user the result; do not just say it cannot be read.
+- If a tool reports an unsupported format, do not end the conversation; escalate with dsh_task.
