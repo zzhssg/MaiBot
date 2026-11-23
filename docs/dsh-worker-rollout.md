@@ -136,8 +136,7 @@ uv pip install --python "$(head -1 ~/.local/bin/maibot | sed 's/^#!//')" "pypdf>
 
 ```sh
 # 本机 → mini（只同步代码与提示词，不碰实例数据）
-rsync -az --itemize-changes --exclude '__pycache__' --exclude '*.pyc' \
-  src/ prompts/ mini:code/MaiBot/src/ 2>/dev/null   # 提示词单独一条更稳：
+rsync -az --itemize-changes --exclude '__pycache__' --exclude '*.pyc' src/ mini:code/MaiBot/src/
 rsync -az --itemize-changes --exclude '__pycache__' --exclude '*.pyc' prompts/ mini:code/MaiBot/prompts/
 rsync -az pyproject.toml requirements.txt mini:code/MaiBot/
 rsync -az docs/dsh-worker.md docs/dsh-worker-rollout.md docs/agent-connections.md mini:code/MaiBot/docs/
