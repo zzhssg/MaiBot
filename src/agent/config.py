@@ -6,7 +6,13 @@ from src.config.config_base import ConfigBase, Field
 
 
 class WorkerConfig(ConfigBase):
-    """DSH Worker：把需要动电脑的活派给本机 dsh，结果回到当前聊天。"""
+    """DSH Worker：把读文件、改代码、搜索等需要动电脑的任务交给本机 dsh，结果回到当前聊天由麦麦转述。
+
+    开启前先确认本机能执行 dsh --version，并在 ~/.dsh/profiles/acp 配好模型与凭据；worker 用的是
+    dsh --profile acp，与 Desktop 配置不共享。工作目录必须是已存在的绝对路径。详见 docs/dsh-worker.md。
+    """
+
+    __ui_label__ = "工程能力（DSH Worker）"
 
     enabled: bool = Field(default=False, json_schema_extra={
         "label": {"zh_CN": "启用 DSH Worker"}, "x-widget": "switch",

@@ -29,6 +29,23 @@ _REFERENCES: Dict[str, Tuple[Tuple[Tuple[str, ...], ...], AISearchSource, str]] 
         "the mixed-content diagnosis follows from the reported browser URL. A successful upgrade returns HTTP 101 Switching "
         "Protocols. Verify a live log update or chat event after the handshake.",
     ),
+    "help:dsh-worker": (
+        (
+            ("dsh", "worker", "工程能力", "后台执行", "后台任务", "电脑", "写插件", "computer"),
+            ("配置", "开启", "启用", "设置", "怎么用", "怎么让", "安装", "setup", "enable"),
+        ),
+        AISearchSource(
+            title="MaiBot · DSH Worker 接入说明",
+            url="https://github.com/Mai-with-u/MaiBot/blob/main/docs/dsh-worker.md",
+        ),
+        "在 WebUI 配置 → 实验性 → 外接 Agent 里找到「工程能力（DSH Worker）」。开启前先确认本机能执行 "
+        "dsh --version，并在 ~/.dsh/profiles/acp/cordis.patch.yml 配好可用模型与凭据；worker 用的是 "
+        "dsh --profile acp，和 Desktop 的 profile 不共享模型配置。接着把 worker.enabled 打开：主人私聊直接可用，"
+        "其他聊天要加进 worker.allow_users / allow_groups。worker.workspace 必须是已存在的绝对路径，决定它能读写哪些文件。"
+        "每个任务独立会话，成功后保留 30 分钟（worker.session_ttl_seconds），同一件事的追问传 continue_from；"
+        "过期或失效会报「会话已过期」而不是静默新开。进程重启会给原聊天补一条中断说明，不重放任务。"
+        "需要绕过模型判断时发 /work <内容>；带文件的消息会自动附一条只读提示，但不会强制派单。",
+    ),
     "help:group-reply": (
         (("群聊", "群消息", "group chat", "グループ"), ("不回复", "不回", "禁用", "暂停", "no reply", "返信しない")),
         AISearchSource(
