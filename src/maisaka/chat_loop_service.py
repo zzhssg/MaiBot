@@ -808,6 +808,8 @@ class MaisakaChatLoopService:
         # 每轮读取实验开关，普通与专注模式共用同一份本地化风格指令。
         if attention_drift := self._scene_prompts.attention_drift_block():
             system_prompt += f"\n\n{attention_drift}"
+        if worker_rule := self._build_worker_rule():
+            system_prompt += f"\n\n{worker_rule}"
         return system_prompt
 
     def _build_planner_final_user_reminder(self) -> str:
@@ -907,6 +909,13 @@ class MaisakaChatLoopService:
     def _build_query_memory_rule(self) -> str:
         """按当前聊天类型构造记忆检索提示。"""
         return self._scene_prompts.query_memory_rule()
+
+    def _build_worker_rule(self) -> str:
+        """开启 DSH Worker 时说明何时该自己派单；关闭时为空，不占提示词。"""
+
+        if not global_config.agent.worker.enabled:
+            return ""
+        return load_prompt("planner_worker_policy").strip()
 
     def _build_subagent_rule(self) -> str:
         """开启子代理时说明何时该把任务交给 subagent；未开启时为空，不占提示词。"""

@@ -32,4 +32,7 @@ description = "按触发场景加载的指令模板；与主要 Prompt 分开编
 display_name = "等待结束指令"
 advanced = false
 description = "按触发场景加载的指令模板；与主要 Prompt 分开编辑。"
-
+[planner_worker_policy]
+display_name = "后台执行策略"
+advanced = false
+description = "开启 DSH Worker 时，说明何时该自己判断并派单给后台。"

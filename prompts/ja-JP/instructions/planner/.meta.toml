@@ -32,4 +32,7 @@ description = "場面に応じて読み込む指示テンプレート。主要�
 display_name = "待機終了の指示"
 advanced = false
 description = "場面に応じて読み込む指示テンプレート。主要な Prompt とは別に編集します。"
-
+[planner_worker_policy]
+display_name = "バックグラウンド実行ポリシー"
+advanced = false
+description = "DSH Worker 有効時に、いつ自分で派遣するかを説明する。"

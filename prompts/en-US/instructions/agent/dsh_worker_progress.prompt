@@ -1,0 +1,5 @@
+[Background task {task_id} is still running: {elapsed} elapsed, latest action: {progress}]
+This is progress, not a result. The user is still waiting:
+- Say in one sentence that it is still in progress and how far it got; do not repeat commands, tool names, or full arguments.
+- If you already reported progress and nothing new happened, stay quiet with a bare wait.
+- Do not promise a completion time and do not say "almost done".

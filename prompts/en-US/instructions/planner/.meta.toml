@@ -32,4 +32,7 @@ description = "Instruction template loaded for its triggering scenario; edited s
 display_name = "Wait completion instructions"
 advanced = false
 description = "Instruction template loaded for its triggering scenario; edited separately from main prompts."
-
+[planner_worker_policy]
+display_name = "Background execution policy"
+advanced = false
+description = "Tells the planner when to dispatch to the DSH worker on its own."
