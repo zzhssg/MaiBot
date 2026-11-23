@@ -35,6 +35,19 @@ def build_delivery_text(task: DshTask) -> str:
     ).strip()
 
 
+def build_progress_text(task: DshTask) -> str:
+    """长任务的进度心跳：只给一句现状，由麦麦决定要不要开口。"""
+
+    total = max(0, int(task.elapsed_seconds))
+    elapsed = f"{total} 秒" if total < 60 else f"{total // 60} 分 {total % 60} 秒"
+    return load_prompt(
+        "dsh_worker_progress",
+        task_id=task.task_id,
+        elapsed=elapsed,
+        progress=task.progress or "刚接手",
+    ).strip()
+
+
 def build_interrupted_text(record: Dict[str, Any]) -> str:
     """进程重启后补发的中断说明，措辞同样走提示词模板。"""
 
@@ -46,6 +59,19 @@ def build_interrupted_text(record: Dict[str, Any]) -> str:
         task_id=str(record.get("task_id", "")),
         brief=brief,
     ).strip()
+
+
+async def deliver_task_progress(task: DshTask) -> None:
+    """把进度作为内部任务送回原聊天；Planner 自行决定说一句还是保持安静。"""
+
+    from src.chat.heart_flow.heartflow_manager import heartflow_manager
+
+    runtime = await heartflow_manager.get_or_create_heartflow_chat(task.chat_id)
+    runtime.enqueue_internal_task(
+        source_kind="dsh_worker_progress",
+        text=build_progress_text(task),
+        reason="DSH 后台任务进度",
+    )
 
 
 async def deliver_task_result(task: DshTask) -> None:

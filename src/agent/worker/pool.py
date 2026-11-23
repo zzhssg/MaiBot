@@ -10,7 +10,7 @@ import asyncio
 import time
 
 from src.agent.config import AgentConfig
-from src.agent.worker.delivery import deliver_task_result
+from src.agent.worker.delivery import deliver_task_progress, deliver_task_result
 from src.agent.worker.session import WorkerSession, WorkerTimeout, WorkerTurnError
 from src.agent.worker.tasks import DshTask, DshTaskRegistry
 from src.common.json_storage import read_json, write_json
@@ -20,6 +20,18 @@ from src.common.prompt_i18n import load_prompt
 from src.config.config import global_config
 
 logger = get_logger("agent.worker.pool")
+
+# 工具动作最多每 5 秒覆盖一次进度文字；长任务在 45 秒时补一条可见心跳。
+PROGRESS_MIN_INTERVAL = 5.0
+HEARTBEAT_AFTER_SECONDS = 45.0
+LEDGER_RECENT_SECONDS = 900.0
+LEDGER_MAX_ITEMS = 3
+_ACTION_LABELS = {
+    "bash": "跑命令", "shell": "跑命令", "terminal": "跑命令",
+    "read": "读文件", "write": "写文件", "edit": "改文件",
+    "search": "查代码", "grep": "查代码", "glob": "找文件", "list": "列目录",
+    "fetch": "查网页", "web": "查网页", "browser": "开网页",
+}
 
 
 @dataclass(slots=True)
@@ -38,8 +50,13 @@ class _RetainedSession:
 class WorkerPool:
     """一个进程内共享的 worker 池：任务默认新开会话，结束后保留一小段时间供追问。"""
 
-    def __init__(self, deliver: Optional[Callable[[DshTask], Awaitable[None]]] = None) -> None:
+    def __init__(
+        self,
+        deliver: Optional[Callable[[DshTask], Awaitable[None]]] = None,
+        progress: Optional[Callable[[DshTask], Awaitable[None]]] = None,
+    ) -> None:
         self._deliver = deliver or deliver_task_result
+        self._progress = progress or deliver_task_progress
         self._registry = DshTaskRegistry()
         self._retained: Dict[str, _RetainedSession] = {}
         self._session_counter = 0
@@ -163,9 +180,19 @@ class WorkerPool:
                             cwd=workspace,
                         )
                         await session.start()
-                    task.result = await session.run(
-                        self._prompt(task, continuation=retained is not None), config.worker.timeout,
+                    # 保留会话会复用给下一个任务，回调按当前任务重绑。
+                    session.on_progress = lambda progress: self._record_progress(task, progress)
+                    heartbeat = asyncio.create_task(
+                        self._heartbeat(task), name=f"agent.worker.heartbeat:{task.task_id}",
                     )
+                    try:
+                        task.result = await session.run(
+                            self._prompt(task, continuation=retained is not None), config.worker.timeout,
+                        )
+                    finally:
+                        heartbeat.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await heartbeat
             self._registry.finish(task, "done", result=task.result)
             keep = True
         except TimeoutError as exc:
@@ -192,6 +219,83 @@ class WorkerPool:
                         await session.close()
             self._schedule_flush()
         await self._deliver_safely(task)
+
+    def _record_progress(self, task: DshTask, progress: Dict[str, str]) -> None:
+        """把一次工具动作压成进度文字；窗口内不重复刷新。"""
+
+        if task.status != "running":
+            return
+        label = self._progress_label(progress)
+        if not label:
+            return
+        now = time.time()
+        if task.progress and now - task.progress_at < PROGRESS_MIN_INTERVAL:
+            return
+        task.progress = label
+        task.progress_at = now
+
+    @staticmethod
+    def _progress_label(progress: Dict[str, str]) -> str:
+        title = str(progress.get("title") or "").strip().lower()
+        kind = str(progress.get("kind") or "").strip().lower()
+        detail = " ".join(str(progress.get("detail") or "").split())
+        action = _ACTION_LABELS.get(title) or _ACTION_LABELS.get(kind) or "干活"
+        return f"{action}：{detail[:80]}" if detail else action
+
+    async def _heartbeat(self, task: DshTask) -> None:
+        """长任务在固定时间点补一条可见进度；聊到一半就结束的任务不打扰。"""
+
+        await asyncio.sleep(HEARTBEAT_AFTER_SECONDS)
+        if task.status != "running" or task.heartbeat_sent:
+            return
+        task.heartbeat_sent = True
+        await self._deliver_progress_safely(task)
+
+    async def _deliver_progress_safely(self, task: DshTask) -> None:
+        try:
+            await self._progress(task)
+        except Exception:
+            logger.exception(f"DSH worker 进度回送失败: task_id={task.task_id}")
+
+    def ledger(self, chat_id: str) -> str:
+        """当前聊天的任务账本：进行中与最近结束，供 Planner 每轮参考。"""
+
+        now = time.time()
+        tasks = self._registry.list_for_chat(chat_id)
+        running = sorted(
+            (task for task in tasks if task.status == "running"),
+            key=lambda task: task.started_at, reverse=True,
+        )
+        finished = sorted(
+            (
+                task for task in tasks
+                if task.status != "running" and task.finished_at and now - task.finished_at <= LEDGER_RECENT_SECONDS
+            ),
+            key=lambda task: task.finished_at or 0.0, reverse=True,
+        )
+        if not running and not finished:
+            return ""
+        lines = ["【后台任务】"]
+        for task in running[:LEDGER_MAX_ITEMS]:
+            progress = f"；最近动作：{task.progress}" if task.progress else ""
+            lines.append(
+                f"- {task.task_id} 运行中，已 {self._format_elapsed(task.elapsed_seconds)}{progress}；"
+                f"任务：{task.brief[:60]}",
+            )
+        for task in finished[:LEDGER_MAX_ITEMS]:
+            lines.append(
+                f"- {task.task_id} 已结束（{task.status}，"
+                f"{self._format_elapsed(now - (task.finished_at or now))}前）；任务：{task.brief[:60]}",
+            )
+        lines.append("用户问「怎么样了」「到哪了」时按这里回答；不要编造进度，也不要在没有新消息时反复汇报。")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_elapsed(seconds: float) -> str:
+        total = max(0, int(seconds))
+        if total < 60:
+            return f"{total} 秒"
+        return f"{total // 60} 分 {total % 60} 秒"
 
     def _retain(self, task: DshTask, session: WorkerSession, lock: asyncio.Lock) -> None:
         """把成功任务的会话放回保留区，并刷新过期时间。"""

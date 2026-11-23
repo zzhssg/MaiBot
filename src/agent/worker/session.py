@@ -1,7 +1,7 @@
 """一个聊天对应的 DSH 会话：纯文本 ACP，不挂任何会说话的麦麦工具。"""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import asyncio
 
@@ -10,6 +10,9 @@ from src.agent.config import AgentConfig
 from src.common.logger import get_logger
 
 logger = get_logger("agent.worker.session")
+
+ProgressCallback = Callable[[Dict[str, str]], None]
+"""收到 DSH 工具动作时的回调；参数只含动作标签，不含工具输出。"""
 
 
 class WorkerTurnError(RuntimeError):
@@ -31,10 +34,15 @@ class WorkerTimeout(TimeoutError):
 class WorkerSession:
     """持有一个 ACP 连接和一个 DSH 会话，只收集正文并返回给麦麦。"""
 
-    def __init__(self, chat_id: str, config: AgentConfig, cwd: Path) -> None:
+    def __init__(
+        self, chat_id: str, config: AgentConfig, cwd: Path,
+        on_progress: Optional[ProgressCallback] = None,
+    ) -> None:
         self.chat_id = chat_id
         self.config = config
         self.cwd = cwd
+        # 会话会被按 TTL 复用给同一聊天的下一个任务，回调随任务重绑。
+        self.on_progress = on_progress
         self.connection: Optional[ACPConnection] = None
         self.session_id = ""
         self._chunks: List[str] = []
@@ -100,16 +108,27 @@ class WorkerSession:
             await self.close()
 
     async def _collect(self, params: Dict[str, Any]) -> None:
-        """只收正文分片；思考过程、工具事件都不进入麦麦上下文。"""
+        """收集正文分片，并把工具动作压成一句进度交给回调；工具输出不进入上下文。"""
 
         if params.get("sessionId") != self.session_id:
             return
         update = params.get("update", {})
-        if update.get("sessionUpdate") != "agent_message_chunk":
+        update_kind = update.get("sessionUpdate")
+        if update_kind == "agent_message_chunk":
+            content = update.get("content", {})
+            if content.get("type") == "text" and content.get("text"):
+                self._chunks.append(content["text"])
             return
-        content = update.get("content", {})
-        if content.get("type") == "text" and content.get("text"):
-            self._chunks.append(content["text"])
+        if update_kind != "tool_call" or update.get("status") != "in_progress":
+            return
+        if self.on_progress is None:
+            return
+        raw_input = update.get("rawInput") or {}
+        self.on_progress({
+            "title": str(update.get("title") or ""),
+            "kind": str(update.get("kind") or ""),
+            "detail": str(raw_input.get("description") or raw_input.get("command") or ""),
+        })
 
     async def close(self) -> None:
         """关闭连接；可重复调用。"""

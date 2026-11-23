@@ -417,3 +417,34 @@ must_include: ["ORANGE-204", "BLUE-731 验收暗号：请原样返回这一行"]
 **结论**：事实保真与回复风格已经解耦——planner 仍可能选「简短表达」，但 `must_include` 的内容不会因为风格被压掉。下一步是让 planner 在纯交付场景主动选「交付」档，以及把进度事件接上（P0-3/P0-4 之后的 P1）。
 
 部署记录：mini `~/code/MaiBot` 已更新并重启；改动前备份 `~/apps/backups/maibot-code-before-fix-201024.tgz`；ACP profile 备份 `~/.dsh/profiles/acp/cordis.patch.yml.bak-20261123-195748`。
+
+---
+
+## 13. 进度心跳与任务账本（2026-11-23 20:27）
+
+**改了什么**
+
+1. `WorkerSession._collect` 开始处理 `tool_call`（`status=in_progress`），把工具动作压成 `{title, kind, detail}` 回调；工具输出和思考过程仍然不进上下文。
+2. `WorkerPool` 记录任务进度（5 秒窗口内不重复刷新）、在 45 秒时补一条可见心跳、并提供 `ledger(chat_id)`：
+   `【后台任务】- dsh-1 运行中，已 2 分 13 秒；最近动作：跑命令：…`。
+3. `delivery.py` 新增进度回送（内部任务 `dsh_worker_progress`），三语提示词 `dsh_worker_progress.prompt`。
+4. `reasoning_engine` 在 worker 开启时把账本注入每轮 Planner 上下文。
+5. 3 个测试文件补 6 条用例（会话回调、动作标签、账本、心跳、进度文案）；`pytests/agent` 46 条通过，`pytests/agent+maisaka+core` 407 条通过。
+
+**怎么验的**
+
+线上发：`/work 在 /Users/morty/code 执行 sleep 50 && echo done-long`，第 16 秒追问「到哪了？」。
+
+| 时间 | 实际行为 |
+|---|---|
+| 16s | 追问送达 |
+| 23s | 「d-sh-1 还在跑 sleep 50 && echo done-long 呢」——账本生效，答出了任务号和动作 |
+| 45s | 心跳触发了 Planner 一轮（prompt 快照可见「已 45 秒」），它选择 `wait` 保持安静——刚回答过，判定没有新信息 |
+| 80s | 「跑完了……输出是 done-long，EXIT_CODE=0」 |
+
+**踩到的坑**：第一版进度文案让 Planner 以为来了新任务，口头说「把你要的心跳派给 dsh-2」。改成「【系统进度通知，不是用户消息】……不要调用 dsh_task，不要重新派发」后消失。
+
+**仍待定**
+
+- 心跳是否必须出声：现在是「提醒 Planner 可以说」，刚回答过追问时它会选择安静。要保证"绝不黑箱"，需要把第一次心跳改成强制一句（代价是可能重复）。
+- 账本里的任务摘要直接用了 `brief` 前 60 字，模型会复述命令；可改成更短的动作摘要。

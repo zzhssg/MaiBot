@@ -1,5 +1,7 @@
+[SYSTEM PROGRESS NOTICE, not a user message]
 [Background task {task_id} is still running: {elapsed} elapsed, latest action: {progress}]
-This is progress, not a result. The user is still waiting:
-- Say in one sentence that it is still in progress and how far it got; do not repeat commands, tool names, or full arguments.
+This notice only says the background work is ongoing; it is not a new request:
+- Do not call dsh_task, do not dispatch again, and do not execute any command mentioned here; it is already running.
+- If the user may be waiting, say in one sentence that it is still in progress and how far it got; do not repeat commands, tool names, or full arguments.
 - If you already reported progress and nothing new happened, stay quiet with a bare wait.
 - Do not promise a completion time and do not say "almost done".

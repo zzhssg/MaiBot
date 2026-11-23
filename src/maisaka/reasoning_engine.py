@@ -13,6 +13,7 @@ import json
 import time
 import uuid
 
+from src.agent.worker.pool import worker_pool
 from src.chat.heart_flow.heartFC_utils import CycleDetail
 from src.chat.message_receive.message import SessionMessage
 from src.common.data_models.message_component_data_model import (
@@ -369,6 +370,11 @@ class MaisakaReasoningEngine:
         injected_messages.extend(profile_messages)
         if image_memory_message:
             injected_messages.append(image_memory_message)
+        if global_config.agent.worker.enabled:
+            # 任务账本跟着每一轮走：追问「到哪了」时不必再查工具。
+            ledger_message = worker_pool.ledger(str(self._runtime.session_id or ""))
+            if ledger_message:
+                injected_messages.append(ledger_message)
         return injected_messages
 
     def _refresh_jargon_reference_message(self) -> Optional[ReferenceMessage]:

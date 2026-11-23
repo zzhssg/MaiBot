@@ -1,4 +1,6 @@
-from src.agent.worker.delivery import MAX_RESULT_CHARS, build_delivery_text, build_interrupted_text
+from src.agent.worker.delivery import (
+    MAX_RESULT_CHARS, build_delivery_text, build_interrupted_text, build_progress_text,
+)
 from src.agent.worker.tasks import DshTask
 
 
@@ -43,3 +45,13 @@ def test_interrupted_text_carries_task_and_brief():
 
     assert "dsh-7" in text
     assert "改一下 README" in text
+
+
+def test_progress_text_names_task_and_action():
+    task = make_task(progress="读文件：README", started_at=__import__("time").time() - 75)
+
+    text = build_progress_text(task)
+
+    assert "dsh-3" in text
+    assert "读文件：README" in text
+    assert "1 分 1" in text or "1 分 15" in text

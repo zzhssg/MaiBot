@@ -252,3 +252,47 @@ async def test_finished_task_leaves_no_running_record(pool_env, monkeypatch, tmp
     await pool._flush()
 
     assert not pool._state_path().exists()
+
+
+def test_progress_label_maps_known_tools():
+    assert WorkerPool._progress_label({"title": "bash", "detail": "ls -la"}) == "跑命令：ls -la"
+    assert WorkerPool._progress_label({"title": "", "kind": "other"}) == "干活"
+
+
+def test_ledger_lists_running_and_recent(pool_env):
+    pool, _ = pool_env
+    running = pool._registry.create(chat_id="c1", brief="读 README", backend="cli", session="dsh-s1")
+    running.progress = "读文件：README"
+    done = pool._registry.create(chat_id="c1", brief="改脚本", backend="cli", session="dsh-s2")
+    pool._registry.finish(done, "done", result="ok")
+
+    text = pool.ledger("c1")
+
+    assert "运行中" in text
+    assert "读文件：README" in text
+    assert "已结束" in text
+    assert pool.ledger("other") == ""
+
+
+@pytest.mark.asyncio
+async def test_long_task_sends_one_progress_heartbeat(pool_env, monkeypatch):
+    pool, _ = pool_env
+    beats = []
+
+    async def progress(task):
+        beats.append(task)
+
+    pool._progress = progress
+    monkeypatch.setattr(pool_module, "HEARTBEAT_AFTER_SECONDS", 0.01)
+
+    class SlowSession(FakeSession):
+        async def run(self, prompt, timeout):
+            await asyncio.sleep(0.05)
+            return "完成了"
+
+    monkeypatch.setattr(pool_module, "WorkerSession", SlowSession)
+    task = pool.submit(chat_id="c1", brief="读 README", screen=False)
+    await task.asyncio_task
+
+    assert [item.task_id for item in beats] == [task.task_id]
+    assert beats[0].heartbeat_sent is True

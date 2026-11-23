@@ -27,6 +27,9 @@ class DshTask:
     finished_at: Optional[float] = None
     result: str = ""
     error: str = ""
+    progress: str = ""
+    progress_at: float = 0.0
+    heartbeat_sent: bool = False
     asyncio_task: Optional[asyncio.Task[None]] = None
 
     @property
@@ -47,6 +50,7 @@ class DshTask:
             "elapsed_seconds": round(self.elapsed_seconds, 1),
             "error": self.error,
             "result_preview": self.result[:300],
+            "progress": self.progress,
         }
 
 

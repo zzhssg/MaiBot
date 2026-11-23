@@ -115,3 +115,28 @@ async def test_abnormal_stop_keeps_partial_text(monkeypatch, tmp_path):
         await session.run("hi", timeout=5)
 
     assert excinfo.value.text == "done"
+
+
+@pytest.mark.asyncio
+async def test_collect_reports_tool_progress_without_output(monkeypatch, tmp_path):
+    install(monkeypatch)
+    events = []
+    session = WorkerSession(
+        chat_id="c1", config=AgentConfig(acp_timeout=1), cwd=tmp_path, on_progress=events.append,
+    )
+    await session.start()
+
+    await session._collect({
+        "sessionId": "s1",
+        "update": {
+            "sessionUpdate": "tool_call", "status": "in_progress",
+            "title": "bash", "kind": "other", "rawInput": {"description": "List files", "command": "ls"},
+        },
+    })
+    # 完成事件不重复上报；工具输出不进入回调。
+    await session._collect({
+        "sessionId": "s1",
+        "update": {"sessionUpdate": "tool_call_update", "status": "completed", "content": ["secret"]},
+    })
+
+    assert events == [{"title": "bash", "kind": "other", "detail": "List files"}]
