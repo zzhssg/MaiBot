@@ -6,6 +6,7 @@ You are chatting with {sender_name}. This is what you talked about before:
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 Based on the chat, organize a new reply and keep talking from your own point of view. Keep the context coherent.
 {reply_guidance}
 {reply_style}

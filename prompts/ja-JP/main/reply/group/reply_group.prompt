@@ -7,6 +7,7 @@
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 {reply_guidance}
 {reply_style}
 余計な内容（不要な前置きや後置き、コロン、スタンプ、通常の at や @ など）は出力せず、発言内容だけを出力してください。

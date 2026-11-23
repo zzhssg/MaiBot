@@ -166,6 +166,7 @@ class ChatReplyPromptMixin:
             reply_message=reply_message,
             reply_reason=reply_reason,
             chat_anlyze=str((reply_tool_args or {}).get("chat_anlyze") or ""),
+            must_include=(reply_tool_args or {}).get("must_include"),
             expression_intent=(reply_tool_args or {}).get("expression_intent"),
             expression_habits=expression_habits,
             reply_requirements=reply_requirements,
@@ -316,6 +317,7 @@ class ChatReplyPromptMixin:
         reply_requirements: str,
         mai_replier: bool = False,
         expression_intent: Optional[Dict[str, Any]] = None,
+        must_include: Optional[List[Any]] = None,
     ) -> Dict[str, str]:
         """准备回复模板的占位符内容。"""
 
@@ -339,7 +341,28 @@ class ChatReplyPromptMixin:
             "time_block": f"当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "reply_target_block": reply_target_block,
             "planner_reasoning": combined_reference,
+            "must_include_block": self._build_must_include_block(must_include),
         }
+
+    @staticmethod
+    def _build_must_include_block(must_include: Optional[List[Any]]) -> str:
+        """把必须保真的事实渲染成强约束块；不转义花括号，format 只解析模板本身。"""
+
+        facts = [str(item).strip() for item in (must_include or []) if str(item).strip()]
+        if not facts:
+            return ""
+        locale = get_locale()
+        if locale == "en-US":
+            header = "These facts must appear verbatim in the reply; do not rewrite, omit, or summarize them:"
+            footer = "If they conflict with your tone, the facts win."
+        elif locale == "ja-JP":
+            header = "次の事実はそのまま返信に含めてください。書き換え・省略・要約は禁止です:"
+            footer = "文体と衝突する場合は事実を優先してください。"
+        else:
+            header = "以下事实必须原样出现在本次回复里，逐字保留，不许改写、省略或概括："
+            footer = "如果这些事实和你的表达风格冲突，以事实为准。"
+        lines = "\n".join(f"- {fact}" for fact in facts)
+        return f"{header}\n{lines}\n{footer}"
 
     @staticmethod
     def _build_expression_intent_guidance(expression_intent: Optional[Dict[str, Any]]) -> str:

@@ -160,13 +160,23 @@ def get_tool_spec(context: Optional[ToolAvailabilityContext] = None) -> ToolSpec
             "description": (
                 "用一段话，约100-200字描述当前对话局面与查到的关键事实：如同转述一样梳理上文核心逻辑，"
                 "提炼通过搜索或工具查证到的关键事实结论，不写入长段原文时间戳或者具体的消息ID。"
-                "不要原文引用，不评价回复价值、不写回复原因、不构想或指导如何回复。"
+                "不评价回复价值、不写回复原因、不构想或指导如何回复。"
+                "链接、数字、路径、文件名、命令输出这类必须保真的短事实不要只写在这里，另填 must_include。"
             ),
+        },
+        "must_include": {
+            "type": "array",
+            "description": (
+                "本次回复必须原样出现的事实清单：链接、数字、文件路径、文件名、命令输出行。"
+                "只放短事实，不放整段原文；用户要原文时，把对应行原样放进来。没有就省略。"
+            ),
+            "items": {"type": "string"},
+            "default": [],
         },
         "reply_style": {
             "type": "string",
-            "description": "控制本次回复的篇幅和表达方式，当其他人回复都偏短时使用正常回复或者简短表达。当需要解释说明复杂问题时使用长回复，其他情况视情况决定。",
-            "enum": ["简短表达", "正常回复", "长回复"],
+            "description": "控制本次回复的篇幅和表达方式：日常闲聊用简短表达或正常回复；交代做成了什么、结果、链接、路径、下一步时用交付；解释复杂问题时用长回复。",
+            "enum": ["简短表达", "正常回复", "长回复", "交付"],
         },
     }
     if _use_expression_intent():
@@ -278,7 +288,7 @@ def get_tool_spec(context: Optional[ToolAvailabilityContext] = None) -> ToolSpec
 
     return ToolSpec(
         name="reply",
-        description="根据当前思考生成并发送可见回复；可以使用参数附加回复内容。",
+        description="根据当前思考生成并发送可见回复；可以使用参数附加回复内容。交代任务结果时用 reply_style=交付 并填 must_include。",
         parameters_schema={
             "type": "object",
             "properties": properties,

@@ -5,9 +5,15 @@ Result:
 
 The user cannot see the background work; your next message is all they get. Say the essentials in your usual voice:
 - State the result's key conclusions; when the user asked for links, numbers, or file names, give them exactly as-is.
-- Do not narrate the process, list steps, or use phrases like "I have completed" or "per your request".
+- When the result contains evidence (commands, exit codes, paths, log lines), include at least one fact the user can verify instead of just saying "done".
+- Status done: say what got done and how it was verified.
+- Status failed / timeout / cancelled: say where it got stuck, how far it got, and what comes next or what you need from the user. Never pad with "let me take another look" and never claim it is done.
+- Do not narrate the process, do not list steps that carry no information, and do not use phrases like "I have completed" or "per your request".
 - Never end with "not saying" or "don't know". Only say you are unsure about facts the result genuinely lacks.
 - Do not add links, numbers, or conclusions the result does not contain, and never promise to send them later.
 - When the user follows up on the same task (change it, continue, one more), pass continue_from={session} to dsh_task; valid for {ttl_minutes} minutes. Do not pass it for unrelated tasks.
-- When calling reply, copy the result's links, numbers, and file names verbatim into chat_anlyze: the final reply sees only your analysis, not this result.
-- If one sentence is enough, send one sentence.
+- When calling reply:
+  - Put the result's links, numbers, paths, file names, and command output into must_include verbatim, one by one; when the user asked for the original text, include the full line.
+  - Use reply_style="交付" for this kind of result message, not "简短表达".
+  - Keep chat_anlyze to the situation and conclusions; concrete facts belong in must_include.
+- One sentence is fine for small talk; for a result, say it fully and do not drop facts for brevity.

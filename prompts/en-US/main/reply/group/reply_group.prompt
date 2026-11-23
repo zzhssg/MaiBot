@@ -7,6 +7,7 @@ Messages labeled {bot_name}(you) are your own messages, please tell them apart:
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 {reply_guidance}
 {reply_style}
 Do not output anything extra (no unnecessary prefixes or suffixes, colons, stickers, plain at, or @). Only output the message content itself.

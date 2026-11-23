@@ -6,6 +6,7 @@
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 {reply_guidance}
 {reply_style}
 请注意不要输出多余内容(包括前后缀，冒号和引号，括号，表情等)，只输出回复内容。

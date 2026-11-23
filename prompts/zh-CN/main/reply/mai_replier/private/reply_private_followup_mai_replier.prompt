@@ -6,6 +6,7 @@
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 请你根据聊天内容，组织一条新回复，请按照你自己的角度来继续进行回复。注意保持上下文的连贯性。
 {reply_guidance}
 {reply_style}

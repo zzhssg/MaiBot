@@ -6,6 +6,7 @@
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 {reply_guidance}
 {reply_style}
 请注意不要输出多余内容(包括不必要的前后缀，冒号，括号，表情包，at或 @等 )，只输出发言内容就好。

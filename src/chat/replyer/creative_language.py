@@ -54,6 +54,11 @@ GROUP_REPLY_GUIDANCE = {
             "你正在群里聊天,现在请你读读之前的聊天记录，把握当前的话题，给出回复。\n"
             "可以针对问题做出较为详细的评论和说明。"
         ),
+        "交付": (
+            "你在群里交代一件事的结果。先说做成了什么或没做成，再给能核对的事实"
+            "（链接、路径、数字、命令输出），最后说下一步。可以分点；不要寒暄，"
+            "不要用「已完成」「根据您的需求」。"
+        ),
     },
     "en-US": {
         "简短表达": (
@@ -67,6 +72,11 @@ GROUP_REPLY_GUIDANCE = {
         "长回复": (
             "You are chatting in a group. Read the chat log above, follow the current topic, and reply.\n"
             "You may comment on and explain the question in detail."
+        ),
+        "交付": (
+            "You are reporting the outcome of a task in a group. Say what got done or did not, "
+            "then give verifiable facts (links, paths, numbers, command output), then the next step. "
+            "Lists are fine; no pleasantries, no 'I have completed' or 'as requested'."
         ),
     },
     "ja-JP": {
@@ -82,6 +92,11 @@ GROUP_REPLY_GUIDANCE = {
             "あなたはグループでチャットしています。上の履歴を読み、今の話題を踏まえて返信してください。\n"
             "質問について詳しく意見を述べたり説明したりして構いません。"
         ),
+        "交付": (
+            "グループで作業の結果を伝えます。何ができた／できなかったを先に、"
+            "次に確認できる事実（リンク、パス、数字、コマンド出力）、最後に次の一歩。"
+            "箇条書き可。挨拶や「完了しました」「ご要望のとおり」は使わない。"
+        ),
     },
 }
 
@@ -89,17 +104,20 @@ PRIVATE_REPLY_GUIDANCE = {
     "zh-CN": {
         "简短表达": "你正在和对方私聊,现在请你读读之前的聊天记录，然后给出日常且口语化的回复。\n请简短的回复，符合口语习惯，1-2句短句即可。不要长篇大论，无复杂修辞和比喻。",
         "正常回复": "你正在和对方私聊,现在请你读读之前的聊天记录，把握当前的话题，然后给出日常且口语化的回复。\n最好一次对一个话题进行回复，免得啰嗦或者回复内容太乱。",
-        "长回复": "你正在和对方私聊,现在请你读读之前的聊天记录，把握当前的话题，给出回复。\n可以针对问题做出较为详细的评论和说明。"
+        "长回复": "你正在和对方私聊,现在请你读读之前的聊天记录，把握当前的话题，给出回复。\n可以针对问题做出较为详细的评论和说明。",
+        "交付": "你在向对方交代一件事的结果。先说做成了什么或没做成，再给能核对的事实（链接、路径、数字、命令输出），最后说下一步。可以分点；不要寒暄，不要用「已完成」「根据您的需求」。"
     },
     "en-US": {
         "简短表达": "You are chatting privately with someone. Read the chat log above and reply naturally in a conversational tone.\nKeep your reply to one or two short, conversational sentences. Avoid long explanations, elaborate rhetoric, and metaphors.",
         "正常回复": "You are chatting privately with someone. Read the chat log above, follow the current topic, and reply naturally in a conversational tone.\nTry to reply to one topic at a time, so that your reply does not get wordy or messy.",
-        "长回复": "You are chatting privately with someone. Read the chat log above, follow the current topic, and reply.\nYou may comment on and explain the question in detail."
+        "长回复": "You are chatting privately with someone. Read the chat log above, follow the current topic, and reply.\nYou may comment on and explain the question in detail.",
+        "交付": "You are reporting the outcome of a task to the person. Say what got done or did not, then give verifiable facts (links, paths, numbers, command output), then the next step. Lists are fine; no pleasantries, no 'I have completed' or 'as requested'."
     },
     "ja-JP": {
         "简短表达": "あなたは相手と個別チャットしています。上の履歴を読み、日常的な話し言葉で返信してください。\n口語的な短い一文か二文で簡潔に返信してください。長々と説明せず、複雑な修辞や比喩は使わないでください。",
         "正常回复": "あなたは相手と個別チャットしています。上の履歴を読み、今の話題を踏まえて、日常的な話し言葉で返信してください。\n一度にひとつの話題へ返信すると、くどくなったり内容が乱れたりしません。",
-        "长回复": "あなたは相手と個別チャットしています。上の履歴を読み、今の話題を踏まえて返信してください。\n質問について詳しく意見を述べたり説明したりして構いません。"
+        "长回复": "あなたは相手と個別チャットしています。上の履歴を読み、今の話題を踏まえて返信してください。\n質問について詳しく意見を述べたり説明したりして構いません。",
+        "交付": "相手に作業の結果を伝えます。何ができた／できなかったを先に、次に確認できる事実（リンク、パス、数字、コマンド出力）、最後に次の一歩。箇条書き可。挨拶や「完了しました」「ご要望のとおり」は使わない。"
     }
 }
 

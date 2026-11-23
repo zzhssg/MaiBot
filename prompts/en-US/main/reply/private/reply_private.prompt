@@ -6,6 +6,7 @@ You are chatting with {sender_name}. This is what you talked about before:
 
 {reply_target_block}
 {planner_reasoning}
+{must_include_block}
 {reply_guidance}
 {reply_style}
 Do not output anything extra (no prefixes or suffixes, colons, quotes, brackets, stickers). Only output the reply content.
