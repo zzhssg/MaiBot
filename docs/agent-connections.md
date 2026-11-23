@@ -2,6 +2,10 @@
 
 独立 Agent 和实验性外接 Planner 共用 `[agent]` 的连接设置。模型、凭据及 ACP 会话由外部 Agent 管理。外部程序需要支持 ACP v1 和 HTTP MCP；恢复已保存的会话还需要 `session/resume`。
 
+## 工程能力：DSH Worker
+
+`[agent.worker]` 复用上面的连接设置，但按任务临时起会话、不挂 MCP 工具，结果由麦麦转述。开启方式、路由边界和维护契约见 [dsh-worker.md](dsh-worker.md)。
+
 ## 本机 dsh CLI
 
 CLI 模式不需要 `dsh-maibot-bridge`。先在运行麦麦的同一用户环境中确认 `dsh --profile acp` 可以启动，再配置：
