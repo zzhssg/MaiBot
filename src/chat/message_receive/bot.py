@@ -11,8 +11,11 @@ from maim_message import MessageBase
 
 from src.common.paths import get_instance_root
 from src.common.runtime_loop import run_on_main_loop
+from src.agent.worker.attachment import build_attachment_hint, has_file_attachment
+from src.agent.worker.command import build_work_task_text, parse_work_command
+from src.agent.worker.policy import worker_allowed
 from src.chat.heart_flow.heartflow_message_processor import HeartFCMessageReceiver
-from src.chat.heart_flow.heartflow_manager import heartflow_manager
+from src.chat.heart_flow.heartflow_manager import ChatPausedError, heartflow_manager
 from src.common.logger import get_logger
 from src.common.data_models.message_component_data_model import AtComponent
 from src.common.utils.utils_message import MessageUtils
@@ -573,6 +576,52 @@ class ChatBot:
         )
         return True
 
+    async def _process_work_command(self, message: SessionMessage) -> bool:
+        """处理内置 ``/work`` 指令：绕过模型判断，直接把任务交给后台 DSH。"""
+
+        content = parse_work_command(get_command_text(message))
+        if content is None:
+            return False
+
+        from src.services.send_service import text_to_stream
+
+        group_info = message.message_info.group_info
+        allowed = worker_allowed(
+            session_id=message.session_id,
+            platform=message.platform,
+            user_id=message.message_info.user_info.user_id,
+            group_id=group_info.group_id if group_info else "",
+            is_group=group_info is not None,
+        )
+        if not allowed:
+            self._mark_command_message(message, intercept_message_level=1)
+            await self._store_intercepted_command_message(message)
+            await text_to_stream("当前聊天没有后台执行权限。", message.session_id, storage_message=False)
+            return True
+        if not content:
+            self._mark_command_message(message, intercept_message_level=1)
+            await self._store_intercepted_command_message(message)
+            await text_to_stream("用法：/work 要做什么", message.session_id, storage_message=False)
+            return True
+
+        self._mark_command_message(message, intercept_message_level=1)
+        await self._store_intercepted_command_message(message)
+        try:
+            runtime = await heartflow_manager.get_or_create_heartflow_chat(message.session_id)
+        except ChatPausedError:
+            await text_to_stream("聊天已暂停，恢复后再派活。", message.session_id, storage_message=False)
+            return True
+        except Exception:
+            logger.exception(f"/work 派单失败: session_id={message.session_id}")
+            await text_to_stream("派活失败了，稍后再试。", message.session_id, storage_message=False)
+            return True
+        runtime.enqueue_internal_task(
+            source_kind="dsh_work_command",
+            text=build_work_task_text(content),
+            reason="用户 /work 派单",
+        )
+        return True
+
     async def _process_adapter_lifecycle_command(self, message: SessionMessage) -> bool:
         """处理管理员的适配器上下线、聊天暂停与聊天流列表指令。"""
 
@@ -1002,6 +1051,27 @@ class ChatBot:
 
             await get_file_service().ingest(message)
 
+            if has_file_attachment(message):
+                file_group_info = message.message_info.group_info
+                if worker_allowed(
+                    session_id=message.session_id,
+                    platform=message.platform,
+                    user_id=message.message_info.user_info.user_id,
+                    group_id=file_group_info.group_id if file_group_info else "",
+                    is_group=file_group_info is not None,
+                ):
+                    try:
+                        runtime = await heartflow_manager.get_or_create_heartflow_chat(message.session_id)
+                    except ChatPausedError:
+                        runtime = None
+                    except Exception:
+                        logger.exception(f"附件提示注入失败: session_id={message.session_id}")
+                        runtime = None
+                    if runtime is not None:
+                        runtime.append_context_note(
+                            source_kind="dsh_attachment_hint", text=build_attachment_hint(),
+                        )
+
             # message.update_chat_stream(chat)
 
             if await self._process_adapter_lifecycle_command(message):
@@ -1010,6 +1080,9 @@ class ChatBot:
             # 调试用内置指令需要先写入持久化清理边界，再停止当前运行时，
             # 避免并发消息或进程重启重新带回清理前的短期上下文。
             if await self._process_clear_context_command(message):
+                return
+
+            if await self._process_work_command(message):
                 return
 
             # 命令处理 - 分发本体管理命令及插件注册的命令。

@@ -1,0 +1,4 @@
+[User command /work]
+The user explicitly asked to hand this to the background DSH worker. You must call dsh_task; do not answer it yourself and do not just acknowledge:
+{content}
+After dispatching, confirm in your usual voice; relay the result when it arrives.

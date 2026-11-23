@@ -1,0 +1,1 @@
+[Attachment hint] This message carries a file attachment (the [文件] entry below). To read or process it, hand it to the background worker with dsh_task; do not guess its contents from the name, size, or type.
